@@ -1,0 +1,119 @@
+.experience {
+  position: relative;
+}
+
+.experience__anchor {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.experience__pin {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+  /* Dark — matches the rest of the site. car-scene (below) always paints its
+     own light studio backdrop over its own bounds (full-bleed on desktop,
+     the top portion on mobile), so this is only ever seen briefly before the
+     3D scene mounts, or behind mobile's stacked text region — both places
+     where dark-bg/light-text (the rest of the site's contrast) is correct. */
+  background: var(--color-bg);
+}
+
+/* Layout wrapper around the Three.js canvas — the actual "camera" is now a
+   real THREE.PerspectiveCamera driven directly by GSAP (see
+   ScrollExperience.tsx), not a CSS transform; this div just positions the
+   canvas and holds the mobile stacked-layout sizing below. */
+.car-scene-transform {
+  position: absolute;
+  inset: 0;
+}
+
+/* A soft orange glow over the approximate headlight position, faded in only
+   during the front-end stage. Position is a best guess for the front-end
+   pseudo-camera framing (splineConfig.ts) — nudge left/top once the real
+   scene is loaded and you can see exactly where the headlights land. */
+.car-scene__glow {
+  position: absolute;
+  left: 16%;
+  top: 40%;
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent-soft), transparent 70%);
+  filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Mobile: stack the 3D scene above its text content, in normal flow --- */
+@media (max-width: 900px) {
+  .experience__pin {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .experience__pin .car-scene-transform {
+    position: relative;
+    flex: 0 0 44vh;
+  }
+
+  /* Only one of these three is ever "current" — on desktop they overlap via
+     position:absolute so all three can stay mounted for a cross-fade, but in
+     mobile's stacked flex column that would make them fight over height, so
+     hide whichever isn't active outright instead of just fading it to 0. */
+  .experience__pin .hero-overlay,
+  .experience__pin .info-panel,
+  .experience__pin .final-reveal {
+    display: none;
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+
+  .experience__pin .hero-overlay.is-visible,
+  .experience__pin .final-reveal.is-visible {
+    display: flex;
+  }
+
+  .experience__pin .info-panel.is-visible {
+    display: block;
+  }
+}
+
+/* ---- prefers-reduced-motion: plain stacked flow, no pin/scrub at all ---- */
+.experience--static {
+  display: flex;
+  flex-direction: column;
+}
+
+.experience--static .experience__static-block {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.experience--static .experience__static-scene {
+  position: relative;
+  height: 46vh;
+  margin-bottom: 2rem;
+}
+
+.experience--static .hero-overlay,
+.experience--static .info-panel,
+.experience--static .final-reveal {
+  position: static;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  transform: none;
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "car-detailing-dev",
+      "runtimeExecutable": "C:/Users/marvi/Documents/car-detailing-site/.claude/run-dev.cmd",
+      "runtimeArgs": [],
+      "port": 5173
+    }
+  ]
+}

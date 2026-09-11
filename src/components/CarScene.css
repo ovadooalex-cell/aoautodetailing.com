@@ -1,0 +1,52 @@
+.car-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, var(--color-studio-bg) 0%, var(--color-studio-bg-edge) 100%);
+}
+
+.car-scene__canvas {
+  width: 100% !important;
+  height: 100% !important;
+  /* A light contrast/saturation lift — reads as richer paint and deeper
+     shadows without tipping into an artificial/HDR look. The rest of the
+     realism (paint clearcoat, reflections, roughness/metalness, HDRI
+     lighting) lives in the material/lighting setup in CarScene.tsx and
+     carConfig.ts. */
+  filter: contrast(1.06) saturate(1.12);
+}
+
+.car-scene__placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.car-scene__error {
+  color: var(--color-text-muted, #999);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0 1.5rem;
+}
+
+.car-scene__spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
+  border-top-color: var(--color-accent);
+  animation: car-scene-spin 1s linear infinite;
+}
+
+@keyframes car-scene-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .car-scene__spinner {
+    animation: none;
+  }
+}

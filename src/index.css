@@ -1,0 +1,178 @@
+/* ==========================================================================
+   GLOBAL DESIGN SYSTEM — dark army-tan, veteran-owned automotive detailing
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Palette: near-black olive base + brass/tan accent ---- */
+  --color-bg: #100f0b;
+  --color-bg-raised: #1a1811;
+  --color-bg-panel: rgba(24, 22, 16, 0.76);
+  --color-border: rgba(201, 168, 106, 0.14);
+  --color-border-strong: rgba(201, 168, 106, 0.28);
+  --color-text: #f3efe4;
+  --color-text-muted: #a89f8c;
+  --color-text-faint: #6b6455;
+  --color-accent: #c9973f; /* brass/tan — AO's signature gold */
+  --color-accent-soft: rgba(201, 151, 63, 0.32);
+  --color-olive: #3f3c2a; /* muted olive drab — used sparingly for texture/borders */
+
+  /* ---- The 3D car's own backdrop: a neutral studio white/grey, distinct
+     from the rest of the dark UI — like the car is lit on a studio floor
+     inside an otherwise dark, premium site. ---- */
+  --color-studio-bg: #eae8e2;
+  --color-studio-bg-edge: #cfccc2;
+  --color-studio-scrim: rgba(16, 15, 11, 0.55);
+
+  /* ---- Type scale ---- */
+  --font-display: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --fs-hero: clamp(3rem, 8vw, 7.5rem);
+  --fs-h1: clamp(2.25rem, 5vw, 4rem);
+  --fs-h2: clamp(1.5rem, 3vw, 2.25rem);
+  --fs-eyebrow: 0.8125rem;
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+
+  /* ---- Spacing / layout ---- */
+  --nav-height: 84px;
+  --edge-pad: clamp(24px, 5vw, 72px);
+  --panel-width: 460px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  /* ---- Motion ---- */
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 0.3s;
+  --dur-med: 0.6s;
+  --dur-slow: 1.1s;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-bg);
+  scroll-behavior: auto; /* GSAP ScrollSmoother owns smoothing */
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+#root {
+  position: relative;
+}
+
+img,
+canvas,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+/* ---- Shared primitives ---- */
+
+.eyebrow {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 1rem 1.75rem;
+  background: var(--color-text);
+  color: var(--color-bg);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background var(--dur-fast) var(--ease-premium),
+    color var(--dur-fast) var(--ease-premium),
+    border-color var(--dur-fast) var(--ease-premium),
+    transform var(--dur-fast) var(--ease-premium);
+}
+
+.btn:hover {
+  background: transparent;
+  color: var(--color-text);
+  transform: translateY(-1px);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text);
+}
+
+.btn--ghost:hover {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.glass-panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

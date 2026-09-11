@@ -1,0 +1,73 @@
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 0 var(--edge-pad);
+  max-width: 900px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-med) var(--ease-premium);
+  visibility: hidden;
+}
+
+.hero-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Protects the text against the light studio backdrop behind the car —
+   fades out toward the right so the car itself stays clearly visible. */
+.hero-overlay__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, var(--color-studio-scrim) 0%, var(--color-studio-scrim) 38%, transparent 72%);
+  pointer-events: none;
+}
+
+.hero-overlay__title {
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-overlay__desc {
+  font-size: 1.125rem;
+  color: var(--color-text-muted);
+  max-width: 38ch;
+  line-height: 1.6;
+}
+
+.hero-overlay__hint {
+  margin-top: 2.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+@media (max-width: 900px) {
+  .hero-overlay {
+    position: static;
+    padding: 2rem var(--edge-pad);
+    max-width: none;
+    text-align: left;
+  }
+
+  .hero-overlay__hint {
+    margin-top: 1.5rem;
+  }
+
+  /* Not needed on mobile — text and car occupy separate stacked regions,
+     never overlapping, so there's nothing to protect it against. */
+  .hero-overlay__scrim {
+    display: none;
+  }
+}
