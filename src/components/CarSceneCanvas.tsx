@@ -25,28 +25,61 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
 
     // The car's 31 meshes have no part names, but they're NOT all one
     // undifferentiated shell either — confirmed by rendering each mesh in
-    // its own color (a throwaway diagnostic, since removed) and looking at
-    // the result, not by guessing from bounding boxes (which had wrongly
-    // suggested no part was isolated, since a mirrored/symmetric mesh's
-    // bounding box spans the full car width even when it's disconnected
-    // geometry at all four corners). Three meshes turned out to be real,
-    // isolated geometry: #10 is the spoke/hub detail (all four wheels),
-    // #16 is the tire + rim barrel (all four wheels), and #30 is the
-    // windshield + side windows + headlight lenses. Traversal order is
-    // deterministic for a given file, so these indices are stable as long
-    // as porsche.glb itself doesn't change.
-    const RIM_MESH_INDEX = 10;
+    // its own color (a throwaway diagnostic, since removed each time) and
+    // looking at the actual result, not by guessing from bounding boxes
+    // (which had wrongly suggested no part was isolated, since a mirrored/
+    // symmetric mesh's bounding box spans the full car width even when it's
+    // disconnected geometry at all four corners).
+    //
+    // An earlier pass here mislabeled #10 as "the rim" — a closer isolation
+    // check (once the wheel was actually zoomed in on, not viewed from
+    // across the car) showed #10 is really the brake rotor/disc, and the
+    // visible spoke arms are a completely separate mesh, #25. That's why
+    // the rim looked "wrong" (picking up the body's blue reflection) even
+    // after retuning what I thought was its material — it was never being
+    // touched at all. Also found in the same pass: #21/#22/#23 are a small
+    // shield emblem on the hub cap, which gets folded into the plain
+    // spoke/rim material below rather than kept as its own distinct color,
+    // per "no emblems" — it still exists as a shape, just not colored to
+    // stand out as a badge. Traversal order is deterministic for a given
+    // file, so these indices are stable as long as porsche.glb itself
+    // doesn't change.
+    const ROTOR_MESH_INDEX = 10;
     const TIRE_MESH_INDEX = 16;
+    const EMBLEM_MESH_INDICES = new Set([21, 22, 23]);
+    const RIM_MESH_INDEX = 25;
     const GLASS_MESH_INDEX = 30;
+
+    // Duller, less reflective than the rim — a cast/drilled brake rotor is
+    // a much more matte, worn metal than a polished wheel face.
+    const rotorMaterial = new THREE.MeshStandardMaterial({
+      color: '#4a4a4d',
+      metalness: 0.7,
+      roughness: 0.6,
+    });
+    // metalness/roughness kept modest rather than mirror-like — an earlier
+    // attempt at 0.9/0.35 (on the wrong mesh, see above) picked up such a
+    // strong tint from the surrounding body paint that it read as the
+    // body's color instead of its own. This still looks metallic without
+    // fully mirroring whatever's nearby.
     const rimMaterial = new THREE.MeshStandardMaterial({
       color: '#2b2b30',
-      metalness: 0.9,
-      roughness: 0.35,
+      metalness: 0.6,
+      roughness: 0.5,
     });
-    const tireMaterial = new THREE.MeshStandardMaterial({
-      color: '#161616',
-      metalness: 0.05,
-      roughness: 0.85,
+    // The reference photos' tires read as glossy/wet, not flat matte
+    // rubber — which also happens to match AO's own "tire dressing"
+    // service (their bullet list literally sells this exact look). A
+    // MeshPhysicalMaterial with a modest clearcoat gets that sheen without
+    // needing an actual tread texture (there isn't one on this asset —
+    // whatever tread-block shape shows is baked into the geometry itself).
+    const tireMaterial = new THREE.MeshPhysicalMaterial({
+      color: '#181818',
+      metalness: 0,
+      roughness: 0.55,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.25,
+      envMapIntensity: 0.8,
     });
     // Tinted but genuinely see-through glass — this mesh also covers the
     // headlight lenses, which reads fine since real lenses are glass-like
@@ -72,8 +105,10 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
-      if (meshIndex === RIM_MESH_INDEX) {
+      if (meshIndex === RIM_MESH_INDEX || EMBLEM_MESH_INDICES.has(meshIndex)) {
         mesh.material = rimMaterial;
+      } else if (meshIndex === ROTOR_MESH_INDEX) {
+        mesh.material = rotorMaterial;
       } else if (meshIndex === TIRE_MESH_INDEX) {
         mesh.material = tireMaterial;
       } else if (meshIndex === GLASS_MESH_INDEX) {
