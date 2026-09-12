@@ -22,20 +22,47 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
   useEffect(() => {
     if (readyRef.current) return;
     readyRef.current = true;
+
+    // The car's 31 meshes have no part names, but they're NOT all one
+    // undifferentiated shell either — confirmed by rendering each mesh in
+    // its own color (a throwaway diagnostic, since removed) and looking at
+    // the result, not by guessing from bounding boxes (which had wrongly
+    // suggested no part was isolated, since a mirrored/symmetric mesh's
+    // bounding box spans the full car width even when it's disconnected
+    // geometry at all four corners). Two meshes turned out to be real,
+    // isolated wheel geometry, present identically at all four wheels:
+    // mesh #10 is the spoke/hub detail, #16 is the tire + rim barrel.
+    // Traversal order is deterministic for a given file, so these indices
+    // are stable as long as porsche.glb itself doesn't change.
+    const RIM_MESH_INDEX = 10;
+    const TIRE_MESH_INDEX = 16;
+    const rimMaterial = new THREE.MeshStandardMaterial({
+      color: '#2b2b30',
+      metalness: 0.9,
+      roughness: 0.35,
+    });
+    const tireMaterial = new THREE.MeshStandardMaterial({
+      color: '#161616',
+      metalness: 0.05,
+      roughness: 0.85,
+    });
+
+    let meshIndex = 0;
     scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        // Push the baked clearcoat paint material as close to real
-        // automotive paint as this asset allows: tighter, glossier
-        // clearcoat and a stronger reaction to the HDRI so reflections
-        // read as sharp highlights rather than a flat sheen. This is the
-        // ceiling for "realistic" here — there's no separate tire/glass/
-        // trim geometry in this mesh (confirmed earlier by dumping every
-        // mesh's bounding box: each one spans the car's full width, so
-        // there's no isolated part to give its own material), so the paint
-        // material is genuinely the only lever available.
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      if (meshIndex === RIM_MESH_INDEX) {
+        mesh.material = rimMaterial;
+      } else if (meshIndex === TIRE_MESH_INDEX) {
+        mesh.material = tireMaterial;
+      } else {
+        // Everything else is the body — push the baked clearcoat paint
+        // material as close to real automotive paint as this asset allows:
+        // tighter, glossier clearcoat and a stronger reaction to the HDRI
+        // so reflections read as sharp highlights rather than a flat sheen.
         const mat = mesh.material as THREE.MeshPhysicalMaterial;
         if (mat?.isMeshPhysicalMaterial) {
           mat.roughness = 0.18;
@@ -44,7 +71,9 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
           mat.envMapIntensity = 1.4;
         }
       }
+      meshIndex++;
     });
+
     const box = new THREE.Box3().setFromObject(scene);
     onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box });
   }, [scene, camera, onReady]);
