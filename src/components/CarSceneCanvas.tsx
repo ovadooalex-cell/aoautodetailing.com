@@ -27,6 +27,22 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
       if (mesh.isMesh) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        // Push the baked clearcoat paint material as close to real
+        // automotive paint as this asset allows: tighter, glossier
+        // clearcoat and a stronger reaction to the HDRI so reflections
+        // read as sharp highlights rather than a flat sheen. This is the
+        // ceiling for "realistic" here — there's no separate tire/glass/
+        // trim geometry in this mesh (confirmed earlier by dumping every
+        // mesh's bounding box: each one spans the car's full width, so
+        // there's no isolated part to give its own material), so the paint
+        // material is genuinely the only lever available.
+        const mat = mesh.material as THREE.MeshPhysicalMaterial;
+        if (mat?.isMeshPhysicalMaterial) {
+          mat.roughness = 0.18;
+          mat.clearcoat = 1;
+          mat.clearcoatRoughness = 0.03;
+          mat.envMapIntensity = 1.4;
+        }
       }
     });
     const box = new THREE.Box3().setFromObject(scene);
@@ -81,6 +97,13 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
       camera={{ fov: 32, near: 0.1, far: 100 }}
       dpr={[1, 1.75]}
       gl={{ antialias: true }}
+      onCreated={({ gl }) => {
+        // Filmic tone mapping — the same curve real product-photography
+        // renderers use — so the HDRI's highlights roll off naturally
+        // instead of clipping to flat white. R3F's default is neutral/flat.
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = 1.1;
+      }}
     >
       <Suspense fallback={null}>
         <Model onReady={onReady} />
