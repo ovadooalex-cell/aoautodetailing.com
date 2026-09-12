@@ -45,8 +45,20 @@ export type StageId = 'hero' | 'exterior' | 'side-body' | 'front-end' | 'wheels'
 export const MODEL_URL = '/models/porsche/porsche.glb';
 export const HDRI_URL = '/models/hdri/studio.exr';
 
-/** AO's brand brass/tan (index.css --color-accent) — the car's paint color. */
-export const PAINT_COLOR = '#c9973f';
+/**
+ * The car's paint color, applied at runtime in CarSceneCanvas.tsx (this
+ * constant used to just sit here unused — the color actually came from
+ * whatever was baked into porsche.glb at export time; fixed so there's one
+ * real source of truth).
+ *
+ * A vivid mid blue, matched by eye against the reference photos the user
+ * supplied of a real Porsche 911 — approximating their car's paint color,
+ * not copying anything about the reference itself (no badges, plates, or
+ * other identifying marks exist on this asset to begin with). AO's brand
+ * brass/tan (index.css --color-accent, '#c9973f') was the color here for
+ * most of this project; kept as a comment in case of a future revert.
+ */
+export const PAINT_COLOR = '#2f97d4';
 
 export interface OrbitPoseParams {
   /** Degrees around the car's Y axis — 0 = dead-on front, 90 = right flank, 180 = rear. */

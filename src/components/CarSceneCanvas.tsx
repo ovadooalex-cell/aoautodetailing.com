@@ -3,7 +3,7 @@ import { Canvas, useThree, useLoader } from '@react-three/fiber';
 import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import * as THREE from 'three';
-import { MODEL_URL, HDRI_URL } from '../config/carConfig';
+import { MODEL_URL, HDRI_URL, PAINT_COLOR } from '../config/carConfig';
 import type { CarSceneHandle } from './CarScene';
 
 /**
@@ -48,15 +48,21 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
       metalness: 0.05,
       roughness: 0.85,
     });
-    // Dark tinted glass — this mesh also covers the headlight lenses,
-    // which reads fine since real lenses are glass-like too.
+    // Tinted but genuinely see-through glass — this mesh also covers the
+    // headlight lenses, which reads fine since real lenses are glass-like
+    // too. There's no modeled interior behind it (this asset never had
+    // one), so pushing transmission any higher than this starts looking
+    // like an empty shell rather than glass with something behind it —
+    // this is the balance point between "looks like solid tinted plastic"
+    // (the old value) and "looks hollow".
     const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#0a0e12',
+      color: '#141b21',
       metalness: 0,
-      roughness: 0.05,
-      transmission: 0.6,
-      thickness: 0.05,
-      envMapIntensity: 1.5,
+      roughness: 0.03,
+      transmission: 0.8,
+      thickness: 0.15,
+      ior: 1.5,
+      envMapIntensity: 1.3,
     });
 
     let meshIndex = 0;
@@ -73,17 +79,18 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
       } else if (meshIndex === GLASS_MESH_INDEX) {
         mesh.material = glassMaterial;
       } else {
-        // Everything else is the body — push the baked clearcoat paint
-        // material as close to real automotive paint as this asset allows,
-        // tuned against the reference photos the user provided (same
-        // army-tan color, not their blue — just matching how glossy/deep
-        // real paint reads): a lower base metalness (real metallic car
-        // paint is embedded flake under a clear base, not bare metal, which
-        // reads as too "raw" at high metalness), low roughness, and a
-        // tight, glossy clearcoat on top with a strong HDRI response so
-        // reflections read as sharp highlights rather than a flat sheen.
+        // Everything else is the body — color comes from PAINT_COLOR (see
+        // carConfig.ts for the reasoning), and the rest of these values push
+        // the baked clearcoat material as close to real automotive paint as
+        // this asset allows, tuned against the reference photos: a lower
+        // base metalness (real metallic car paint is embedded flake under a
+        // clear base, not bare metal, which reads as too "raw" at high
+        // metalness), low roughness, and a tight, glossy clearcoat on top
+        // with a strong HDRI response so reflections read as sharp
+        // highlights rather than a flat sheen.
         const mat = mesh.material as THREE.MeshPhysicalMaterial;
         if (mat?.isMeshPhysicalMaterial) {
+          mat.color.set(PAINT_COLOR);
           mat.metalness = 0.45;
           mat.roughness = 0.12;
           mat.clearcoat = 1;
