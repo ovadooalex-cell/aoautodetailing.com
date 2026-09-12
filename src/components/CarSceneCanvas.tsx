@@ -29,13 +29,15 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
     // the result, not by guessing from bounding boxes (which had wrongly
     // suggested no part was isolated, since a mirrored/symmetric mesh's
     // bounding box spans the full car width even when it's disconnected
-    // geometry at all four corners). Two meshes turned out to be real,
-    // isolated wheel geometry, present identically at all four wheels:
-    // mesh #10 is the spoke/hub detail, #16 is the tire + rim barrel.
-    // Traversal order is deterministic for a given file, so these indices
-    // are stable as long as porsche.glb itself doesn't change.
+    // geometry at all four corners). Three meshes turned out to be real,
+    // isolated geometry: #10 is the spoke/hub detail (all four wheels),
+    // #16 is the tire + rim barrel (all four wheels), and #30 is the
+    // windshield + side windows + headlight lenses. Traversal order is
+    // deterministic for a given file, so these indices are stable as long
+    // as porsche.glb itself doesn't change.
     const RIM_MESH_INDEX = 10;
     const TIRE_MESH_INDEX = 16;
+    const GLASS_MESH_INDEX = 30;
     const rimMaterial = new THREE.MeshStandardMaterial({
       color: '#2b2b30',
       metalness: 0.9,
@@ -45,6 +47,16 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
       color: '#161616',
       metalness: 0.05,
       roughness: 0.85,
+    });
+    // Dark tinted glass — this mesh also covers the headlight lenses,
+    // which reads fine since real lenses are glass-like too.
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: '#0a0e12',
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 0.6,
+      thickness: 0.05,
+      envMapIntensity: 1.5,
     });
 
     let meshIndex = 0;
@@ -58,6 +70,8 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
         mesh.material = rimMaterial;
       } else if (meshIndex === TIRE_MESH_INDEX) {
         mesh.material = tireMaterial;
+      } else if (meshIndex === GLASS_MESH_INDEX) {
+        mesh.material = glassMaterial;
       } else {
         // Everything else is the body — push the baked clearcoat paint
         // material as close to real automotive paint as this asset allows:
