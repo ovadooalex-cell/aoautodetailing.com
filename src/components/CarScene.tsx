@@ -9,7 +9,12 @@ import './CarScene.css';
 // @splinetool/react-spline.
 const CarSceneCanvas = lazy(() => import('./CarSceneCanvas'));
 
-const LOAD_TIMEOUT_MS = 15000;
+// Generous on purpose — the hero glb is ~8MB and GLTFLoader has to parse
+// 222k triangles of it client-side, which can genuinely take longer than a
+// typical "did the request hang" timeout on a slow connection/device. This
+// used to be 15s and that turned out to be too tight — it fired even on a
+// successful, still-in-progress load and tore the whole Canvas down.
+const LOAD_TIMEOUT_MS = 45000;
 
 export interface CarSceneHandle {
   camera: PerspectiveCamera;
