@@ -74,15 +74,21 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
         mesh.material = glassMaterial;
       } else {
         // Everything else is the body — push the baked clearcoat paint
-        // material as close to real automotive paint as this asset allows:
-        // tighter, glossier clearcoat and a stronger reaction to the HDRI
-        // so reflections read as sharp highlights rather than a flat sheen.
+        // material as close to real automotive paint as this asset allows,
+        // tuned against the reference photos the user provided (same
+        // army-tan color, not their blue — just matching how glossy/deep
+        // real paint reads): a lower base metalness (real metallic car
+        // paint is embedded flake under a clear base, not bare metal, which
+        // reads as too "raw" at high metalness), low roughness, and a
+        // tight, glossy clearcoat on top with a strong HDRI response so
+        // reflections read as sharp highlights rather than a flat sheen.
         const mat = mesh.material as THREE.MeshPhysicalMaterial;
         if (mat?.isMeshPhysicalMaterial) {
-          mat.roughness = 0.18;
+          mat.metalness = 0.45;
+          mat.roughness = 0.12;
           mat.clearcoat = 1;
-          mat.clearcoatRoughness = 0.03;
-          mat.envMapIntensity = 1.4;
+          mat.clearcoatRoughness = 0.02;
+          mat.envMapIntensity = 1.5;
         }
       }
       meshIndex++;
@@ -136,7 +142,12 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
   return (
     <Canvas
       className="car-scene__canvas"
-      shadows
+      // R3F's plain `shadows` boolean requests THREE.PCFSoftShadowMap, which
+      // this three.js version no longer implements — it logs a "removed,
+      // using PCFShadowMap instead" warning on every single frame it
+      // renders. Asking for PCFShadowMap directly gets the same result
+      // (three.js was silently substituting it anyway) with no warning.
+      shadows={{ type: THREE.PCFShadowMap }}
       camera={{ fov: 32, near: 0.1, far: 100 }}
       dpr={[1, 1.75]}
       gl={{ antialias: true }}
