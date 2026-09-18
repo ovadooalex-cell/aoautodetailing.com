@@ -18,14 +18,17 @@ export const BOOKING_MAILTO = `mailto:${CONTACT_EMAIL}?subject=${encodeURICompon
 )}`;
 
 /**
- * Optional: a URL the booking form POSTs each request to as JSON, for
- * delivery without the visitor's email app. Left empty on purpose — the site
- * is static (no server of its own), so automatic delivery needs a hosted
- * form/email service the owner picks and signs off on. While it's empty, the
- * form falls back to opening the visitor's email app with the whole request
- * pre-filled and addressed to CONTACT_EMAIL. See lib/booking.ts.
+ * Where booking-form submissions are delivered. The site is static (no
+ * server of its own), so the form posts to FormSubmit — a free form-to-email
+ * relay, chosen by the owner — which forwards each request to CONTACT_EMAIL.
+ * No account is needed, but the very first submission triggers a one-time
+ * activation email to that address: click the link in it once and every
+ * booking after that arrives normally. Until then (and whenever FormSubmit
+ * can't be reached) the form falls back to opening the visitor's email app
+ * with the request pre-filled, so no request is lost. Set this to '' to use
+ * only that fallback. See lib/booking.ts.
  */
-export const BOOKING_ENDPOINT = '';
+export const BOOKING_ENDPOINT = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
 
 /** Short trust badges shown under the hero, mirroring the flyer. */
 export const TRUST_BADGES = [

@@ -180,11 +180,12 @@ export function buildMailto(data: BookingRequest, reference: string) {
 export type DeliveryResult = 'sent' | 'email-app';
 
 /**
- * Delivers a request. With BOOKING_ENDPOINT configured, POSTs it as JSON and
- * resolves 'sent' on success (throws on failure, so the UI can show its
- * fallback). With none configured — the default — it opens the visitor's
- * email app with the request pre-filled and resolves 'email-app'; the
- * customer still has to press Send there, and the UI says so honestly.
+ * Delivers a request. With BOOKING_ENDPOINT configured (it is — FormSubmit),
+ * POSTs it as JSON and resolves 'sent' only when the service confirms it
+ * (throws otherwise, so the UI shows its email/text/call fallback with the
+ * request intact). With no endpoint configured it opens the visitor's email
+ * app with the request pre-filled and resolves 'email-app'; the customer
+ * still has to press Send there, and the UI says so honestly.
  */
 export async function deliverBooking(data: BookingRequest, reference: string): Promise<DeliveryResult> {
   if (!BOOKING_ENDPOINT) {
@@ -199,11 +200,22 @@ export async function deliverBooking(data: BookingRequest, reference: string): P
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         ...Object.fromEntries(summarize(data, reference)),
+        // FormSubmit options (underscore-prefixed fields aren't shown in the email).
         _subject: `${SITE_NAME} — booking request ${reference} — ${data.name.trim()}`,
+        _template: 'table',
+        _captcha: 'false',
+        // Hitting Reply in the inbox goes straight to the customer, when they gave an email.
+        ...(data.email.trim() ? { _replyto: data.email.trim() } : {}),
       }),
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Booking service responded ${response.status}`);
+    // FormSubmit answers 200 even for some refusals (e.g. a not-yet-activated
+    // form) and says so in the body — treat that as a failure so the customer
+    // gets the email fallback instead of a false "received".
+    const result: unknown = await response.json().catch(() => null);
+    const ok = result && typeof result === 'object' && 'success' in result ? String((result as { success: unknown }).success) === 'true' : false;
+    if (!ok) throw new Error('Booking service did not accept the request');
     return 'sent';
   } finally {
     window.clearTimeout(timeout);

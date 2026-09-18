@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { CONTACT_EMAIL, CONTACT_PHONE, CONTACT_PHONE_SMS, CONTACT_PHONE_TEL, SERVICE_AREA } from '../config/siteConfig';
+import { BOOKING_ENDPOINT, CONTACT_EMAIL, CONTACT_PHONE, CONTACT_PHONE_SMS, CONTACT_PHONE_TEL, SERVICE_AREA } from '../config/siteConfig';
 import { ADD_ONS } from '../data/packages';
 import {
   EMPTY_BOOKING,
@@ -382,6 +382,13 @@ export default function BookingForm({ preselect }: { preselect?: ServicePreselec
           This is a request, not a confirmed appointment — we’ll reach out by {data.contactPreference} to confirm the
           time and price. Need it sooner? Call or text{' '}
           <a href={CONTACT_PHONE_TEL}>{CONTACT_PHONE}</a>.
+          {BOOKING_ENDPOINT && (
+            <>
+              {' '}
+              Your request is emailed to us through FormSubmit, a form-delivery service, and used only to schedule your
+              detail.
+            </>
+          )}
         </p>
       </div>
     </form>
