@@ -4,6 +4,7 @@ import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import * as THREE from 'three';
 import { MODEL_URL, HDRI_URL, PAINT_COLOR } from '../config/carConfig';
+import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
 import type { CarSceneHandle } from './CarScene';
 
 /**
@@ -44,11 +45,48 @@ function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => vo
     // close); the plain hub disc underneath is left as-is. Traversal order
     // is deterministic for a given file, so these indices are stable as long
     // as porsche.glb itself doesn't change.
+    //
+    // A later pass (found the same way — recoloring candidate meshes in
+    // flat, distinct colors and looking at the wheel close-up) turned up the
+    // rest of what was still wrongly painted body-blue, which is what made
+    // the wheel area look like a toy rather than a car: #13 and #17 are
+    // tire sidewall rings (a bright blue ring around every tire), #12 the
+    // brake calipers, #18 the wheel-arch liners (the dark cavity behind the
+    // tire — was a blue slab), #26 the hub discs (plus a little dark trim at
+    // the front of the car), and #29 the black lower-bumper valances and
+    // small hardware.
     const ROTOR_MESH_INDEX = 10;
-    const TIRE_MESH_INDEX = 16;
+    const CALIPER_MESH_INDEX = 12;
+    const TIRE_MESH_INDICES = new Set([13, 16, 17]);
+    const WHEEL_LINER_MESH_INDEX = 18;
     const EMBLEM_MESH_INDICES = new Set([21, 22, 23]);
     const RIM_MESH_INDEX = 25;
+    const HUB_MESH_INDEX = 26;
+    const LOWER_TRIM_MESH_INDEX = 29;
     const GLASS_MESH_INDEX = 30;
+    // #9 is the front and rear license-plate blanks (a flat body-colored
+    // rectangle in the middle of each bumper) — hidden, per "no plates".
+    const PLATE_MESH_INDEX = 9;
+    // Raised lettering is baked into a couple of the meshes as small separate
+    // islands of triangles, so it can't be hidden by hiding a mesh — see
+    // removeSmallIslandTrianglesInBox. Boxes are world-space, keyed by mesh:
+    //   #26 (the hub discs' mesh): "GTS" on both door sills (mirrored boxes)
+    //       and the model-name script on the rear deck lid. Nearly invisible
+    //       while #26 was body-blue; recoloring it dark for the hub discs
+    //       made the lettering pop. (An earlier attempt to cut the sill text
+    //       out of the neighboring body shell, #5, just punched holes in it.)
+    //   #29 (the lower-trim mesh): the wordmark across the tail-light bar.
+    const LETTERING_BOXES = new Map<number, THREE.Box3[]>([
+      [
+        HUB_MESH_INDEX,
+        [
+          new THREE.Box3(new THREE.Vector3(0.7, 0.2, 0.1), new THREE.Vector3(0.85, 0.38, 0.7)),
+          new THREE.Box3(new THREE.Vector3(-0.85, 0.2, 0.1), new THREE.Vector3(-0.7, 0.38, 0.7)),
+          new THREE.Box3(new THREE.Vector3(-0.7, 0.5, -2.1), new THREE.Vector3(0.7, 0.75, -1.8)),
+        ],
+      ],
+      [LOWER_TRIM_MESH_INDEX, [new THREE.Box3(new THREE.Vector3(-0.7, 0.6, -2.1), new THREE.Vector3(0.7, 0.72, -1.75))]],
+    ]);
 
     // Duller, less reflective than the rim — a cast/drilled brake rotor is
     // a much more matte, worn metal than a polished wheel face.
@@ -81,6 +119,28 @@ function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => vo
       clearcoatRoughness: 0.25,
       envMapIntensity: 0.8,
     });
+    // Painted brake calipers — the one deliberate pop of color down there.
+    // Gloss red is the classic sports-car choice.
+    const caliperMaterial = new THREE.MeshPhysicalMaterial({
+      color: '#b3161c',
+      metalness: 0.25,
+      roughness: 0.35,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.2,
+    });
+    // Wheel-arch liner: matte near-black rubber/felt, so the cavity behind
+    // the tire reads as a dark recess instead of a slab of body paint.
+    const linerMaterial = new THREE.MeshStandardMaterial({
+      color: '#0d0d0f',
+      metalness: 0,
+      roughness: 0.95,
+    });
+    // Black lower-bumper trim/valances — satin plastic, not painted.
+    const lowerTrimMaterial = new THREE.MeshStandardMaterial({
+      color: '#151517',
+      metalness: 0.1,
+      roughness: 0.55,
+    });
     // Tinted but genuinely see-through glass — this mesh also covers the
     // headlight lenses, which reads fine since real lenses are glass-like
     // too. There's no modeled interior behind it (this asset never had
@@ -98,21 +158,29 @@ function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => vo
       envMapIntensity: 1.3,
     });
 
+    scene.updateMatrixWorld(true);
     let meshIndex = 0;
     scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      for (const box of LETTERING_BOXES.get(meshIndex) ?? []) removeSmallIslandTrianglesInBox(mesh, box, 1000);
 
-      if (EMBLEM_MESH_INDICES.has(meshIndex)) {
-        // No badge/crest on the car — see the note above.
+      if (EMBLEM_MESH_INDICES.has(meshIndex) || meshIndex === PLATE_MESH_INDEX) {
+        // No badge/crest/plate on the car — see the notes above.
         mesh.visible = false;
-      } else if (meshIndex === RIM_MESH_INDEX) {
+      } else if (meshIndex === RIM_MESH_INDEX || meshIndex === HUB_MESH_INDEX) {
         mesh.material = rimMaterial;
       } else if (meshIndex === ROTOR_MESH_INDEX) {
         mesh.material = rotorMaterial;
-      } else if (meshIndex === TIRE_MESH_INDEX) {
+      } else if (meshIndex === CALIPER_MESH_INDEX) {
+        mesh.material = caliperMaterial;
+      } else if (meshIndex === WHEEL_LINER_MESH_INDEX) {
+        mesh.material = linerMaterial;
+      } else if (meshIndex === LOWER_TRIM_MESH_INDEX) {
+        mesh.material = lowerTrimMaterial;
+      } else if (TIRE_MESH_INDICES.has(meshIndex)) {
         mesh.material = tireMaterial;
       } else if (meshIndex === GLASS_MESH_INDEX) {
         mesh.material = glassMaterial;
