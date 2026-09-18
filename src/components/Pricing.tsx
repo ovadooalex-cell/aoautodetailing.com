@@ -1,7 +1,7 @@
 import { ADD_ONS, MAINTENANCE_NOTE, MAINTENANCE_PLANS, PACKAGES, PRICING_DISCLAIMER } from '../data/packages';
 import './Pricing.css';
 
-export default function Pricing() {
+export default function Pricing({ onBookPackage }: { onBookPackage?: (packageId: string) => void }) {
   return (
     <section className="pricing" id="pricing">
       <div className="pricing__header">
@@ -32,6 +32,10 @@ export default function Pricing() {
                 <li key={f}>{f}</li>
               ))}
             </ul>
+
+            <button type="button" className="btn btn--ghost pricing-card__cta" onClick={() => onBookPackage?.(pkg.id)}>
+              Book this package
+            </button>
           </article>
         ))}
       </div>

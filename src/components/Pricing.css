@@ -261,3 +261,8 @@
     grid-template-columns: 1fr;
   }
 }
+
+.pricing-card__cta {
+  justify-content: center;
+  margin-top: auto;
+}

@@ -7,9 +7,76 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
   text-align: center;
-  padding: 8rem var(--edge-pad) 6rem;
+  padding: 8rem var(--edge-pad) 3.5rem;
+}
+
+.site-footer__lead {
+  max-width: 46ch;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+/* Form on the left, quick-contact + "how it works" beside it. */
+.site-footer__booking {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 3rem;
+  align-items: start;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--edge-pad) 6rem;
+}
+
+.site-footer__quick {
+  position: sticky;
+  top: calc(var(--nav-height) + 1.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 1.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.site-footer__quick .btn {
+  justify-content: center;
+}
+
+.site-footer__steps {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 1.25rem 0 0;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  counter-reset: step;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.site-footer__steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.site-footer__steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.site-footer__steps strong {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .site-footer__title {
@@ -61,6 +128,18 @@
 
 .site-footer__links a:hover {
   color: var(--color-text);
+}
+
+@media (max-width: 900px) {
+  .site-footer__booking {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .site-footer__quick {
+    position: static;
+    order: -1;
+  }
 }
 
 @media (max-width: 600px) {

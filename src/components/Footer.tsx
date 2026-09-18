@@ -1,7 +1,7 @@
 import {
-  BOOKING_MAILTO,
   CONTACT_EMAIL,
   CONTACT_PHONE,
+  CONTACT_PHONE_SMS,
   CONTACT_PHONE_TEL,
   INSTAGRAM_HANDLE,
   INSTAGRAM_URL,
@@ -9,17 +9,46 @@ import {
   SERVICE_AREA,
   SITE_NAME,
 } from '../config/siteConfig';
+import BookingForm from './BookingForm';
+import type { ServicePreselect } from './BookingForm';
 import './Footer.css';
 
-export default function Footer() {
+export default function Footer({ preselect }: { preselect?: ServicePreselect }) {
   return (
     <footer className="site-footer" id="book">
       <div className="site-footer__cta">
         <span className="eyebrow">Ready when you are</span>
         <h2 className="site-footer__title">BOOK YOUR DETAIL</h2>
-        <a className="btn cta-btn" href={BOOKING_MAILTO}>
-          Book Your Detail
-        </a>
+        <p className="site-footer__lead">
+          Tell us about your vehicle and when works for you — we come to you in {SERVICE_AREA}.
+        </p>
+      </div>
+
+      <div className="site-footer__booking">
+        <BookingForm preselect={preselect} />
+        <aside className="site-footer__quick" aria-label="Other ways to book">
+          <span className="eyebrow">Prefer to talk?</span>
+          <a className="btn cta-btn" href={CONTACT_PHONE_TEL}>
+            Call {CONTACT_PHONE}
+          </a>
+          <a className="btn btn--ghost" href={CONTACT_PHONE_SMS}>
+            Text us
+          </a>
+          <a className="btn btn--ghost" href={`mailto:${CONTACT_EMAIL}`}>
+            Email us
+          </a>
+          <ol className="site-footer__steps">
+            <li>
+              <strong>Request</strong> your day and time above.
+            </li>
+            <li>
+              <strong>We confirm</strong> the time and final price with you.
+            </li>
+            <li>
+              <strong>We come to you</strong> — no drop-off, no waiting room.
+            </li>
+          </ol>
+        </aside>
       </div>
 
       <div className="site-footer__contact">

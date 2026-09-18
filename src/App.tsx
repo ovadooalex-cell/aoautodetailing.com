@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
@@ -7,6 +7,7 @@ import ScrollExperience from './components/ScrollExperience';
 import TrustBadges from './components/TrustBadges';
 import Pricing from './components/Pricing';
 import Footer from './components/Footer';
+import type { ServicePreselect } from './components/BookingForm';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import './App.css';
 
@@ -49,6 +50,16 @@ export default function App() {
   const scrollToBooking = useCallback(() => scrollToId('book'), [scrollToId]);
   const scrollToServices = useCallback(() => scrollToId('pricing'), [scrollToId]);
 
+  // "Book this package" on a pricing card: preselect it in the form, then scroll there.
+  const [preselect, setPreselect] = useState<ServicePreselect>();
+  const bookPackage = useCallback(
+    (service: string) => {
+      setPreselect((prev) => ({ service, nonce: (prev?.nonce ?? 0) + 1 }));
+      scrollToId('book');
+    },
+    [scrollToId],
+  );
+
   return (
     <>
       <Navbar onBook={scrollToBooking} onNavigate={scrollToId} />
@@ -57,8 +68,8 @@ export default function App() {
           <a id="top" className="visually-hidden" href="#top" tabIndex={-1} aria-hidden="true" />
           <ScrollExperience onBook={scrollToBooking} onViewServices={scrollToServices} />
           <TrustBadges />
-          <Pricing />
-          <Footer />
+          <Pricing onBookPackage={bookPackage} />
+          <Footer preselect={preselect} />
         </div>
       </div>
     </>

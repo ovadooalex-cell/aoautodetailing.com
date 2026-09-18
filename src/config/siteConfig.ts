@@ -9,12 +9,23 @@ export const SERVICE_AREA = 'Newnan, GA & Surrounding Areas';
 export const IS_VETERAN_OWNED = true;
 export const CONTACT_PHONE = '470-347-6168';
 export const CONTACT_PHONE_TEL = 'tel:+14703476168';
+export const CONTACT_PHONE_SMS = 'sms:+14703476168';
 export const CONTACT_EMAIL = 'ao.autodetailing26@outlook.com';
 export const INSTAGRAM_HANDLE = '@ao.auto.detailing';
 export const INSTAGRAM_URL = 'https://instagram.com/ao.auto.detailing';
 export const BOOKING_MAILTO = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
   'AO Auto Detailing — booking request',
 )}`;
+
+/**
+ * Optional: a URL the booking form POSTs each request to as JSON, for
+ * delivery without the visitor's email app. Left empty on purpose — the site
+ * is static (no server of its own), so automatic delivery needs a hosted
+ * form/email service the owner picks and signs off on. While it's empty, the
+ * form falls back to opening the visitor's email app with the whole request
+ * pre-filled and addressed to CONTACT_EMAIL. See lib/booking.ts.
+ */
+export const BOOKING_ENDPOINT = '';
 
 /** Short trust badges shown under the hero, mirroring the flyer. */
 export const TRUST_BADGES = [
