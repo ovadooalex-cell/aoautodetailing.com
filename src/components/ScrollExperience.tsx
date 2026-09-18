@@ -9,7 +9,7 @@ import InfoPanel from './InfoPanel';
 import FinalReveal from './FinalReveal';
 import { getStage, DETAIL_STAGES } from '../data/services';
 import type { ServiceStage } from '../data/services';
-import { STAGE_POSE, ORBIT_STAGE } from '../config/carConfig';
+import { STAGE_POSE, ORBIT_STAGE, VIEW_SHIFT } from '../config/carConfig';
 import type { StageId, OrbitPoseParams } from '../config/carConfig';
 import { STAGE_BOUNDARIES, NO_PANEL_STAGE_IDS, EXPERIENCE_HEIGHT_VH, getActiveStageId } from '../config/scrollStages';
 import { clamp, degToRad, lookAtEuler, radToDeg, unwrapAngleTowards } from '../lib/math';
@@ -20,6 +20,18 @@ import './ScrollExperience.css';
 gsap.registerPlugin(ScrollTrigger);
 
 const startOf = (id: StageId) => STAGE_BOUNDARIES.find((b) => b.id === id)!.start;
+
+/**
+ * CSS `top` for a stage's nav anchor: just inside the stage, where the camera
+ * has arrived at that stage's shot. The hard-coded percentages this replaces
+ * were measured against the experience's full height, but the scroll timeline
+ * only spans (height - one viewport) — so they drifted later and later, and
+ * the "Wheels" link landed mid-way through the pull-back to the finale.
+ */
+const anchorTop = (id: StageId) => {
+  const scrollableVh = EXPERIENCE_HEIGHT_VH - 100;
+  return `${((startOf(id) + 0.006) * scrollableVh) / EXPERIENCE_HEIGHT_VH * 100}%`;
+};
 
 const isNoPanelStage = (id: StageId) => (NO_PANEL_STAGE_IDS as StageId[]).includes(id);
 
@@ -48,7 +60,7 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
   const [activeSubHighlight, setActiveSubHighlight] = useState(-1);
 
   // ---- Wire the real Three.js camera into the master scroll timeline ----
-  const handleSceneReady = useCallback(({ camera, box }: CarSceneHandle) => {
+  const handleSceneReady = useCallback(({ camera, box, viewShift }: CarSceneHandle) => {
     // ---- Facts about the car, measured from its real bounding box — the
     // same "compute from geometry, never guess/trust an opaque source"
     // discipline that fixed every camera bug in the old Spline version of
@@ -196,6 +208,19 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
       tl.to(camera.position, { ...revealPose.position, duration: revealStart - wheelsStart, ease: 'power2.inOut' }, wheelsStart);
       tl.to(camera.rotation, { ...unwrap(revealPose.rotation), duration: revealStart - wheelsStart, ease: 'power2.inOut' }, wheelsStart);
 
+      // Where the car sits in the frame, sideways (desktop only — the rig
+      // ignores this below the stacking breakpoint):
+      //   hero (car slid right of the headline) → panel stages (car on the
+      //   left, info card on the right) → reveal (centered, dropped below
+      //   the finale text, full car).
+      // The last ease is deliberately late in the wheels window so the car
+      // doesn't drift under the info card while it's still on screen.
+      viewShift.x = VIEW_SHIFT.hero.x;
+      viewShift.y = VIEW_SHIFT.hero.y;
+      tl.to(viewShift, { ...VIEW_SHIFT.panel, duration: exteriorStart - heroStart, ease: 'power2.inOut' }, heroStart);
+      const wheelsSpan = revealStart - wheelsStart;
+      tl.to(viewShift, { ...VIEW_SHIFT.reveal, duration: wheelsSpan * 0.5, ease: 'power2.inOut' }, wheelsStart + wheelsSpan * 0.5);
+
       ScrollTrigger.refresh();
     });
   }, []);
@@ -251,10 +276,10 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
     <div className="experience" ref={experienceRef} style={{ height: `${EXPERIENCE_HEIGHT_VH}vh` }}>
       {/* Invisible deep-link targets for the navbar — GSAP ScrollSmoother
           auto-intercepts anchor clicks and animates to these positions. */}
-      <span id="exterior" className="experience__anchor" style={{ top: '14%' }} />
-      <span id="side-body" className="experience__anchor" style={{ top: '40%' }} />
-      <span id="wheels" className="experience__anchor" style={{ top: '62%' }} />
-      <span id="front-end" className="experience__anchor" style={{ top: '80%' }} />
+      <span id="exterior" className="experience__anchor" style={{ top: anchorTop('exterior') }} />
+      <span id="side-body" className="experience__anchor" style={{ top: anchorTop('side-body') }} />
+      <span id="front-end" className="experience__anchor" style={{ top: anchorTop('front-end') }} />
+      <span id="wheels" className="experience__anchor" style={{ top: anchorTop('wheels') }} />
 
       <div className="experience__pin" ref={pinRef}>
         <div className="car-scene-transform">

@@ -1,13 +1,18 @@
+/* Text sits at the TOP of the frame on desktop: the finale shot shows the
+   whole car, dropped into the lower part of the canvas (see VIEW_SHIFT in
+   carConfig.ts), so a vertically-centered block would cover it. */
 .final-reveal {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1.25rem;
   text-align: center;
-  padding: 0 var(--edge-pad);
+  padding: calc(var(--nav-height) + 3vh) var(--edge-pad) 0;
+  /* See the note on .hero-overlay — keeps the scrim behind the text. */
+  isolation: isolate;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-med) var(--ease-premium);
@@ -20,13 +25,14 @@
   pointer-events: auto;
 }
 
-/* Protects the centered text against the light studio backdrop — a soft
-   radial vignette rather than Hero's side gradient, since this text sits
-   dead-center over the full-width reveal shot. */
+/* Protects the text against the light studio backdrop — a soft radial
+   vignette rather than Hero's side gradient, centered on the text block at
+   the top of the frame. */
 .final-reveal__scrim {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 50% 50%, var(--color-studio-scrim) 0%, transparent 75%);
+  background: radial-gradient(ellipse 60% 45% at 50% 24%, var(--color-studio-scrim) 0%, transparent 75%);
+  z-index: -1;
   pointer-events: none;
 }
 
@@ -34,13 +40,34 @@
   font-size: var(--fs-h1);
   font-weight: 700;
   letter-spacing: -0.02em;
+  text-shadow: 0 2px 28px rgba(16, 15, 11, 0.5), 0 0 3px rgba(16, 15, 11, 0.25);
+}
+
+/* The muted body/eyebrow colors are tuned for the dark cards; over the light
+   studio backdrop (even under the scrim) they were unreadable here. */
+.final-reveal .eyebrow {
+  color: var(--color-text);
+  opacity: 0.85;
 }
 
 .final-reveal__desc {
   font-size: 1.0625rem;
-  color: var(--color-text-muted);
+  color: var(--color-text);
+  opacity: 0.9;
   max-width: 42ch;
   line-height: 1.6;
+}
+
+/* The ghost button is light-on-transparent, which vanishes against the light
+   studio backdrop once the car's roofline rises behind it. */
+.final-reveal .btn--ghost {
+  background: rgba(16, 15, 11, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.final-reveal .btn--ghost:hover {
+  background: var(--color-text);
 }
 
 .final-reveal__ctas {

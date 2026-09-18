@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'react';
-import { SITE_NAME } from '../config/siteConfig';
+import { NAV_LINKS, SITE_NAME } from '../config/siteConfig';
 import './Navbar.css';
 
 interface NavbarProps {
   onBook?: () => void;
   onNavigate?: (id: string) => void;
 }
-
-const LINKS: { id: string; label: string }[] = [
-  { id: 'exterior', label: 'Exterior' },
-  { id: 'wheels', label: 'Wheels' },
-  { id: 'interior', label: 'Interior' },
-  { id: 'pricing', label: 'Pricing' },
-];
 
 export default function Navbar({ onBook, onNavigate }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
@@ -36,7 +29,7 @@ export default function Navbar({ onBook, onNavigate }: NavbarProps) {
         {SITE_NAME.toUpperCase()}
       </a>
       <nav className="navbar__links">
-        {LINKS.map((link) => (
+        {NAV_LINKS.map((link) => (
           <a
             key={link.id}
             href={`#${link.id}`}

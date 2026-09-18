@@ -23,3 +23,17 @@ export const TRUST_BADGES = [
   { title: 'Local & Reliable', desc: 'Proudly serving our local community.' },
   { title: 'Army Veteran', desc: 'Proudly serving. Proudly serving you.' },
 ];
+
+/**
+ * In-page navigation shared by the header and footer. Every id must be a real
+ * anchor: the scroll stages (see ScrollExperience.tsx) or the pricing section.
+ * The list used to include an "Interior" link — a leftover from a 9-stage
+ * version of the scroll story — that pointed at nothing.
+ */
+export const NAV_LINKS: { id: string; label: string }[] = [
+  { id: 'exterior', label: 'Exterior' },
+  { id: 'side-body', label: 'Paint' },
+  { id: 'front-end', label: 'Front End' },
+  { id: 'wheels', label: 'Wheels' },
+  { id: 'pricing', label: 'Pricing' },
+];

@@ -8,6 +8,11 @@
   gap: 1.25rem;
   padding: 0 var(--edge-pad);
   max-width: 900px;
+  /* Own stacking context, so the scrim's z-index:-1 below sits behind this
+     overlay's text but still above the canvas. Without it the (positioned)
+     scrim painted OVER the non-positioned text and dimmed the headline to
+     grey wherever the two overlapped. */
+  isolation: isolate;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-med) var(--ease-premium);
@@ -25,7 +30,8 @@
 .hero-overlay__scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, var(--color-studio-scrim) 0%, var(--color-studio-scrim) 38%, transparent 72%);
+  background: linear-gradient(to right, var(--color-studio-scrim) 0%, var(--color-studio-scrim) 48%, transparent 84%);
+  z-index: -1;
   pointer-events: none;
 }
 
@@ -36,12 +42,19 @@
   line-height: 0.98;
   display: flex;
   flex-direction: column;
+  /* On wide screens the headline runs past the end of the scrim (the scrim is
+     capped at the overlay's max-width) and the light letters land on the
+     light backdrop; a soft shadow keeps them legible without tinting the car. */
+  text-shadow: 0 2px 28px rgba(16, 15, 11, 0.5), 0 0 3px rgba(16, 15, 11, 0.25);
 }
 
 .hero-overlay__desc {
   font-size: 1.125rem;
-  color: var(--color-text-muted);
-  max-width: 38ch;
+  /* Full text color, not muted: the muted tan was unreadable over the part of
+     the scrim that has already faded out. */
+  color: var(--color-text);
+  opacity: 0.88;
+  max-width: 34ch;
   line-height: 1.6;
 }
 

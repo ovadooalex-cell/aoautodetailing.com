@@ -9,7 +9,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--edge-pad);
-  background: transparent;
+  /* Soft dark fade rather than fully transparent: the header text is light
+     and the studio backdrop behind it is too, so it was unreadable at the
+     top of the page. */
+  background: linear-gradient(to bottom, rgba(10, 10, 11, 0.72), rgba(10, 10, 11, 0.5) 55%, rgba(10, 10, 11, 0));
+  /* Without this the gradient tiles under the 1px transparent border below
+     and paints its darkest color there as a hairline. */
+  background-origin: border-box;
   border-bottom: 1px solid transparent;
   transition: background var(--dur-med) var(--ease-premium),
     border-color var(--dur-med) var(--ease-premium);
@@ -33,7 +39,9 @@
   gap: 2.25rem;
   font-size: 0.8125rem;
   letter-spacing: 0.04em;
-  color: var(--color-text-muted);
+  /* Light, not muted: over the studio backdrop at the top of the page the
+     muted tan had almost no contrast. */
+  color: rgba(243, 239, 228, 0.88);
 }
 
 .navbar__links a {

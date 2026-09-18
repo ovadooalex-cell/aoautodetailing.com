@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useRef } from 'react';
-import { Canvas, useThree, useLoader } from '@react-three/fiber';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { Canvas, useThree, useLoader, useFrame } from '@react-three/fiber';
 import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import * as THREE from 'three';
@@ -14,7 +14,7 @@ import type { CarSceneHandle } from './CarScene';
  * @splinetool/react-spline for the same reason.
  */
 
-function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
+function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => void; viewShift: CarSceneHandle['viewShift'] }) {
   const { scene } = useGLTF(MODEL_URL);
   const { camera } = useThree();
   const readyRef = useRef(false);
@@ -38,12 +38,12 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
     // the rim looked "wrong" (picking up the body's blue reflection) even
     // after retuning what I thought was its material — it was never being
     // touched at all. Also found in the same pass: #21/#22/#23 are a small
-    // shield emblem on the hub cap, which gets folded into the plain
-    // spoke/rim material below rather than kept as its own distinct color,
-    // per "no emblems" — it still exists as a shape, just not colored to
-    // stand out as a badge. Traversal order is deterministic for a given
-    // file, so these indices are stable as long as porsche.glb itself
-    // doesn't change.
+    // shield emblem on the hub cap. Per "no emblems" they're hidden outright
+    // (an earlier pass just recolored them to the rim material, but the
+    // shield's outline still read clearly once the wheel shot pulled in
+    // close); the plain hub disc underneath is left as-is. Traversal order
+    // is deterministic for a given file, so these indices are stable as long
+    // as porsche.glb itself doesn't change.
     const ROTOR_MESH_INDEX = 10;
     const TIRE_MESH_INDEX = 16;
     const EMBLEM_MESH_INDICES = new Set([21, 22, 23]);
@@ -105,7 +105,10 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
-      if (meshIndex === RIM_MESH_INDEX || EMBLEM_MESH_INDICES.has(meshIndex)) {
+      if (EMBLEM_MESH_INDICES.has(meshIndex)) {
+        // No badge/crest on the car — see the note above.
+        mesh.visible = false;
+      } else if (meshIndex === RIM_MESH_INDEX) {
         mesh.material = rimMaterial;
       } else if (meshIndex === ROTOR_MESH_INDEX) {
         mesh.material = rotorMaterial;
@@ -137,8 +140,8 @@ function Model({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
     });
 
     const box = new THREE.Box3().setFromObject(scene);
-    onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box });
-  }, [scene, camera, onReady]);
+    onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift });
+  }, [scene, camera, onReady, viewShift]);
 
   return <primitive object={scene} />;
 }
@@ -180,7 +183,50 @@ function HdriEnvironment({ url }: { url: string }) {
   return null;
 }
 
+/**
+ * Per-frame camera adjustments that depend on the canvas, not on the scroll
+ * story (the scroll timeline owns position/rotation; this owns the lens):
+ *
+ *  - Aspect-aware FOV. three's fov is vertical, so a fixed value that frames
+ *    the car nicely at desktop widescreen crops its nose and tail on anything
+ *    narrower (phones, portrait tablets, a squeezed window). Below the
+ *    reference aspect the vertical FOV widens to hold the same *horizontal*
+ *    field of view, capped so a very tall canvas doesn't fisheye.
+ *  - View shift (setViewOffset) — slides the car around the frame without
+ *    touching the camera's pose, so it can sit beside the info card / clear
+ *    of the hero headline / below the finale text instead of underneath them. Desktop
+ *    only: below the layout's stacking breakpoint the scene already gets its
+ *    own region above the text.
+ */
+const BASE_FOV = 32;
+const REFERENCE_ASPECT = 1.6;
+const MAX_FOV = 62;
+const SHIFT_MIN_WIDTH = 901;
+
+function CameraRig({ viewShift }: { viewShift: CarSceneHandle['viewShift'] }) {
+  useFrame(({ camera, size }) => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const aspect = size.width / size.height;
+    const halfBase = Math.tan(THREE.MathUtils.degToRad(BASE_FOV / 2));
+    cam.fov =
+      aspect >= REFERENCE_ASPECT
+        ? BASE_FOV
+        : Math.min(MAX_FOV, THREE.MathUtils.radToDeg(2 * Math.atan((halfBase * REFERENCE_ASPECT) / aspect)));
+    const shifted = size.width >= SHIFT_MIN_WIDTH;
+    const shiftX = shifted ? viewShift.x * size.width : 0;
+    // The view window moves opposite to the content: window right = car left,
+    // window up = car down (hence the minus).
+    const shiftY = shifted ? -viewShift.y * size.height : 0;
+    // Also re-runs updateProjectionMatrix, which picks up the fov above.
+    cam.setViewOffset(size.width, size.height, shiftX, shiftY, size.width, size.height);
+  });
+  return null;
+}
+
 export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
+  // Stable object identity for the life of the canvas — GSAP mutates it, the
+  // rig reads it; deliberately not React state (it changes every scrub tick).
+  const [viewShift] = useState(() => ({ x: 0, y: 0 }));
   return (
     <Canvas
       className="car-scene__canvas"
@@ -202,7 +248,8 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
       }}
     >
       <Suspense fallback={null}>
-        <Model onReady={onReady} />
+        <Model onReady={onReady} viewShift={viewShift} />
+        <CameraRig viewShift={viewShift} />
         <HdriEnvironment url={HDRI_URL} />
         <directionalLight position={[4, 6, 3]} intensity={2} castShadow shadow-mapSize={[2048, 2048]} />
         <ambientLight intensity={0.3} />

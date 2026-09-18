@@ -22,6 +22,11 @@ export interface CarSceneHandle {
   /** Car's own bounding box in world space, computed once after load — the
    * basis for every camera waypoint (see ScrollExperience.tsx). */
   box: Box3;
+  /** Where the car sits in the frame — a plain mutable value that
+   * ScrollExperience tweens and CarSceneCanvas's CameraRig reads every
+   * frame. Fractions of canvas width/height; positive x = car slides LEFT,
+   * positive y = car slides DOWN (see VIEW_SHIFT in carConfig.ts). */
+  viewShift: { x: number; y: number };
 }
 
 interface CarSceneProps {

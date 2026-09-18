@@ -5,6 +5,7 @@ import {
   CONTACT_PHONE_TEL,
   INSTAGRAM_HANDLE,
   INSTAGRAM_URL,
+  NAV_LINKS,
   SERVICE_AREA,
   SITE_NAME,
 } from '../config/siteConfig';
@@ -33,10 +34,11 @@ export default function Footer() {
       <div className="site-footer__meta">
         <span className="navbar__mark">{SITE_NAME}</span>
         <nav className="site-footer__links">
-          <a href="#exterior">Exterior</a>
-          <a href="#wheels">Wheels</a>
-          <a href="#interior">Interior</a>
-          <a href="#pricing">Pricing</a>
+          {NAV_LINKS.map((link) => (
+            <a key={link.id} href={`#${link.id}`}>
+              {link.label}
+            </a>
+          ))}
         </nav>
         <span className="site-footer__copy">© {new Date().getFullYear()} {SITE_NAME}</span>
       </div>

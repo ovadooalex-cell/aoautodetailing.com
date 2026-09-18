@@ -78,43 +78,59 @@ export interface OrbitPoseParams {
  * here: it's a continuous orbit sweep (see ORBIT_STAGE below), matching the
  * brief ("camera smoothly begins to orbit/rotate as the user scrolls").
  *
- * `distanceFrac` is non-increasing down this list — hero(1.3) → orbit(1.15,
- * below) → side-body(0.6) → front-end(0.58) → wheels(0.4) → reveal(0.28) —
- * on purpose: "never zoom out, only in" was the single most repeated
- * requirement across this whole rebuild, so it's enforced directly in these
- * numbers rather than left to hope.
+ * Distances are NOT monotonic anymore. For most of this rebuild the rule was
+ * "never zoom out, only in" (the single most repeated requirement at the
+ * time), which is what pushed paint/front-end/wheels down to 0.6/0.58/0.4
+ * and the reveal to 0.28 — and once the whole thing was actually scrolled
+ * through at desktop size, that turned out to be too tight: the close-ups
+ * showed slivers of panel instead of the car, and the finale was an abstract
+ * wall of blue paint. The user then explicitly asked for those stages to
+ * pull back and for the ending to show the entire car, so that rule is
+ * retired on purpose: paint/front-end/wheels sit at a "see the car, not
+ * just a panel" distance, and the reveal is the widest shot of all.
  *
- * Story order here is paint → hood → wheel, not the wheel → hood order the
- * brief originally listed — swapped deliberately. The grille needs
- * noticeably more room to read as a grille (an almost-flat, near-dead-on
- * shot goes abstract below ~0.55) than a wheel close-up does (reads great
- * even at 0.4); keeping wheel → hood in the original order would have meant
- * either a real zoom-out on that transition, or an unreadable grille. This
- * way both constraints hold.
+ * Story order is still paint → hood → wheel (not the wheel → hood order
+ * the original brief listed). That was originally forced by the grille
+ * needing more room than a wheel shot; the user has since seen and
+ * approved this order, so it stays.
  *
  * `azimuthDeg`, front-end's especially, was tuned against real renders
- * with an interactive free-fly tool (FrontEndFinder.tsx, since removed),
- * not picked analytically — a near-dead-on angle at 0° turned out to be
- * aimed at the wheel arch, not the grille, at this distance; the actual
- * dead-on-front angle is close to -14°/346°. `azimuthDeg` also keeps each
- * transition rotating rather than snapping back where practical: hero(35)
- * → orbit sweeps 35→90 → side-body(90, exactly where the orbit ends — no
- * jump) → front-end(-14, a repositioning cut, not a sweep) → wheels(130,
- * another cut) → reveal(35, echoing hero for a clean bookend).
+ * with an interactive free-fly tool (since removed), not picked
+ * analytically — a near-dead-on angle at 0° turned out to be aimed at the
+ * wheel arch, not the grille; the actual dead-on-front angle is close to
+ * -14°/346°.
  */
 export const STAGE_POSE: Record<Exclude<StageId, 'exterior'>, OrbitPoseParams> = {
-  hero: { azimuthDeg: 35, elevationFrac: 0.32, distanceFrac: 1.3, targetHeightFrac: 0.4 },
-  'side-body': { azimuthDeg: 90, elevationFrac: 0.22, distanceFrac: 0.6, targetHeightFrac: 0.28, targetOffsetFrac: 0.08 },
-  'front-end': { azimuthDeg: -14, elevationFrac: 0.32, distanceFrac: 0.58, targetHeightFrac: 0.14 },
-  wheels: { azimuthDeg: 130, elevationFrac: 0.1, distanceFrac: 0.4, targetHeightFrac: 0.12, targetOffsetFrac: -0.28 },
-  reveal: { azimuthDeg: 35, elevationFrac: 0.3, distanceFrac: 0.28, targetHeightFrac: 0.36 },
+  hero: { azimuthDeg: 35, elevationFrac: 0.32, distanceFrac: 1.5, targetHeightFrac: 0.4 },
+  'side-body': { azimuthDeg: 90, elevationFrac: 0.24, distanceFrac: 1.5, targetHeightFrac: 0.3, targetOffsetFrac: 0.05 },
+  'front-end': { azimuthDeg: -18, elevationFrac: 0.3, distanceFrac: 1.25, targetHeightFrac: 0.2, targetOffsetFrac: 0.18 },
+  wheels: { azimuthDeg: 130, elevationFrac: 0.14, distanceFrac: 1.05, targetHeightFrac: 0.15, targetOffsetFrac: -0.25 },
+  reveal: { azimuthDeg: 35, elevationFrac: 0.42, distanceFrac: 1.6, targetHeightFrac: 0.28 },
 };
 
-/** The "exterior" stage sweeps continuously from one azimuth to another, at a held elevation/distance — a real orbit, not a jump between two shots. Distance (1.15) sits strictly between hero's 1.3 and side-body's 0.6. */
+/**
+ * Where the car sits in the frame, as fractions of the canvas, desktop only
+ * (on mobile the layout stacks the scene above the text, so there's nothing
+ * to dodge). `x`: positive = car slides LEFT. `y`: positive = car slides DOWN.
+ *   - hero: car slides right, clear of the big left-aligned headline (before
+ *     this, the headline was printed straight across the car).
+ *   - panel: while an info card is on the right, the car sits in the left
+ *     part of the frame instead of underneath the card — the original
+ *     brief's "truck on the left, service card on the right".
+ *   - reveal: centered horizontally and dropped below the finale headline,
+ *     so the whole car is visible instead of hidden behind the text.
+ */
+export const VIEW_SHIFT = {
+  hero: { x: -0.2, y: 0 },
+  panel: { x: 0.17, y: 0 },
+  reveal: { x: -0.04, y: 0.31 },
+};
+
+/** The "exterior" stage sweeps continuously from one azimuth to another, at a held elevation/distance — a real orbit, not a jump between two shots. Distance (1.3) sits between hero's 1.5 and side-body's 1.5 — a touch closer than both, so the orbit reads as a slow push-in that then settles back out slightly to frame the whole flank next to the info card. */
 export const ORBIT_STAGE = {
   azimuthStartDeg: 35,
   azimuthEndDeg: 90,
   elevationFrac: 0.3,
-  distanceFrac: 1.15,
+  distanceFrac: 1.3,
   targetHeightFrac: 0.35,
 };
