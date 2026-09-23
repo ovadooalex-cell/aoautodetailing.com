@@ -3,9 +3,66 @@ import { Canvas, useThree, useLoader, useFrame } from '@react-three/fiber';
 import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import * as THREE from 'three';
-import { MODEL_URL, HDRI_URL, PAINT_COLOR } from '../config/carConfig';
+import { MODEL_URL, HDRI_URL, PAINT_COLOR, TEXTURES_URL } from '../config/carConfig';
+import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
 import type { CarSceneHandle } from './CarScene';
+
+// Two spots turned out to have raised lettering molded into the geometry
+// itself, per the standing "no emblems" rule — a material swap can't hide
+// either one, and recoloring them flat wouldn't fully help (embossed edges
+// still catch a bright specular highlight under the key light — confirmed by
+// rendering both close-up). Both were found the same way: raycasting a grid
+// of screen points across the visible letters and grouping hits by
+// connected-triangle island — the letters are always a handful of small
+// islands (tens to a couple hundred triangles) sitting apart from one much
+// bigger island that's the part's actual body, which is what the size
+// threshold below protects in each case.
+//
+// A world-space box (rather than "the whole mesh") targets just the letters
+// and not the rest of a shared material's geometry, needed for the two
+// grille entries — their materials are also used elsewhere on the truck
+// (window trim, tire tread). The four caliper meshes don't need that: each
+// one *is* the lettering-plus-body, nothing else, so their box is just big
+// enough to cover the whole mesh and the size threshold alone does the work.
+const WHOLE_MESH_BOX = new THREE.Box3(new THREE.Vector3(-10, -10, -10), new THREE.Vector3(10, 10, 10));
+const EMBOSSED_LETTERING_TARGETS: { meshName: string; box: THREE.Box3; maxIslandTriangles: number }[] = [
+  // A "TOYOTA" wordmark on the front grille — turned out to span two
+  // entirely different meshes:
+  {
+    // "grill.001" (exported as "grill001" — glTF node names can't carry
+    // dots), material "nhuaa": the grille shell itself. Nine small islands
+    // (32–216 triangles) here sit right behind where the letters read, most
+    // likely the recessed channel/bevel edge they mount into — removing
+    // them was the first pass and, on its own, didn't remove the text.
+    meshName: 'grill001',
+    box: new THREE.Box3(new THREE.Vector3(-0.22, 1.02, 2.46), new THREE.Vector3(0.22, 1.11, 2.5)),
+    maxIslandTriangles: 250,
+  },
+  {
+    // "grill.012" ("grill012"), material "Material.065": a separate light-
+    // grey insert — a real TOYOTA grille badge is usually its own molded
+    // piece bolted to the black grille bar, not sculpted into it, which
+    // matches. This is the one actually carrying the letters: 147 small
+    // islands (≤144 triangles each) cluster in the same region, with no
+    // large connected surface competing there worth protecting.
+    meshName: 'grill012',
+    box: new THREE.Box3(new THREE.Vector3(-0.25, 1.0, 2.3), new THREE.Vector3(0.25, 1.15, 2.55)),
+    maxIslandTriangles: 300,
+  },
+  // "TRD" embossed into the brake calipers (a real styling detail on this
+  // truck's trim — the model just also replicated the lettering). One mesh
+  // per wheel, all identical copies of the same geometry: a single 320-
+  // triangle caliper body plus a consistent set of smaller islands (18–80
+  // triangles) that are the lettering and a couple of bolt-head details.
+  // Surfaced once real per-part textures went in — the flat red placeholder
+  // this had before didn't carry enough shading definition to read as text.
+  ...['mesh_27', 'wheel_lfchild011', 'mesh_66', 'mesh_67', 'mesh_68', 'mesh_69', 'mesh_70'].map((meshName) => ({
+    meshName,
+    box: WHOLE_MESH_BOX,
+    maxIslandTriangles: 200,
+  })),
+];
 
 /**
  * The actual Three.js/R3F subtree — split into its own lazy-loaded chunk
@@ -17,199 +74,56 @@ import type { CarSceneHandle } from './CarScene';
 
 function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => void; viewShift: CarSceneHandle['viewShift'] }) {
   const { scene } = useGLTF(MODEL_URL);
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const readyRef = useRef(false);
 
   useEffect(() => {
     if (readyRef.current) return;
     readyRef.current = true;
 
-    // The car's 31 meshes have no part names, but they're NOT all one
-    // undifferentiated shell either — confirmed by rendering each mesh in
-    // its own color (a throwaway diagnostic, since removed each time) and
-    // looking at the actual result, not by guessing from bounding boxes
-    // (which had wrongly suggested no part was isolated, since a mirrored/
-    // symmetric mesh's bounding box spans the full car width even when it's
-    // disconnected geometry at all four corners).
+    // Unlike the old Porsche asset (31 anonymous meshes, matched by fragile
+    // traversal index), this truck's ~120 original .mtl materials are
+    // genuinely named ("son_xe" = body paint, "wheel2a_diff" = rim,
+    // "kieng_xe" = windshield, etc. — this source's modeler was Vietnamese;
+    // see vehicleMaterial.ts). Every mesh here carries a placeholder material
+    // whose `name` is that original string (baked in during the one-time
+    // OBJ→glb conversion). Real materials — including, where the source has
+    // one, the real texture — get resolved here, by name; see
+    // vehicleMaterial.ts for the texture story (real .dds files, GPU-side
+    // compressed, gated behind a hardware capability check).
     //
-    // An earlier pass here mislabeled #10 as "the rim" — a closer isolation
-    // check (once the wheel was actually zoomed in on, not viewed from
-    // across the car) showed #10 is really the brake rotor/disc, and the
-    // visible spoke arms are a completely separate mesh, #25. That's why
-    // the rim looked "wrong" (picking up the body's blue reflection) even
-    // after retuning what I thought was its material — it was never being
-    // touched at all. Also found in the same pass: #21/#22/#23 are a small
-    // shield emblem on the hub cap. Per "no emblems" they're hidden outright
-    // (an earlier pass just recolored them to the rim material, but the
-    // shield's outline still read clearly once the wheel shot pulled in
-    // close); the plain hub disc underneath is left as-is. Traversal order
-    // is deterministic for a given file, so these indices are stable as long
-    // as porsche.glb itself doesn't change.
-    //
-    // A later pass (found the same way — recoloring candidate meshes in
-    // flat, distinct colors and looking at the wheel close-up) turned up the
-    // rest of what was still wrongly painted body-blue, which is what made
-    // the wheel area look like a toy rather than a car: #13 and #17 are
-    // tire sidewall rings (a bright blue ring around every tire), #12 the
-    // brake calipers, #18 the wheel-arch liners (the dark cavity behind the
-    // tire — was a blue slab), #26 the hub discs (plus a little dark trim at
-    // the front of the car), and #29 the black lower-bumper valances and
-    // small hardware.
-    const ROTOR_MESH_INDEX = 10;
-    const CALIPER_MESH_INDEX = 12;
-    const TIRE_MESH_INDICES = new Set([13, 16, 17]);
-    const WHEEL_LINER_MESH_INDEX = 18;
-    const EMBLEM_MESH_INDICES = new Set([21, 22, 23]);
-    const RIM_MESH_INDEX = 25;
-    const HUB_MESH_INDEX = 26;
-    const LOWER_TRIM_MESH_INDEX = 29;
-    const GLASS_MESH_INDEX = 30;
-    // #9 is the front and rear license-plate blanks (a flat body-colored
-    // rectangle in the middle of each bumper) — hidden, per "no plates".
-    const PLATE_MESH_INDEX = 9;
-    // Raised lettering is baked into a couple of the meshes as small separate
-    // islands of triangles, so it can't be hidden by hiding a mesh — see
-    // removeSmallIslandTrianglesInBox. Boxes are world-space, keyed by mesh:
-    //   #26 (the hub discs' mesh): "GTS" on both door sills (mirrored boxes)
-    //       and the model-name script on the rear deck lid. Nearly invisible
-    //       while #26 was body-blue; recoloring it dark for the hub discs
-    //       made the lettering pop. (An earlier attempt to cut the sill text
-    //       out of the neighboring body shell, #5, just punched holes in it.)
-    //   #29 (the lower-trim mesh): the wordmark across the tail-light bar.
-    const LETTERING_BOXES = new Map<number, THREE.Box3[]>([
-      [
-        HUB_MESH_INDEX,
-        [
-          new THREE.Box3(new THREE.Vector3(0.7, 0.2, 0.1), new THREE.Vector3(0.85, 0.38, 0.7)),
-          new THREE.Box3(new THREE.Vector3(-0.85, 0.2, 0.1), new THREE.Vector3(-0.7, 0.38, 0.7)),
-          new THREE.Box3(new THREE.Vector3(-0.7, 0.5, -2.1), new THREE.Vector3(0.7, 0.75, -1.8)),
-        ],
-      ],
-      [LOWER_TRIM_MESH_INDEX, [new THREE.Box3(new THREE.Vector3(-0.7, 0.6, -2.1), new THREE.Vector3(0.7, 0.72, -1.75))]],
-    ]);
-
-    // Duller, less reflective than the rim — a cast/drilled brake rotor is
-    // a much more matte, worn metal than a polished wheel face.
-    const rotorMaterial = new THREE.MeshStandardMaterial({
-      color: '#4a4a4d',
-      metalness: 0.7,
-      roughness: 0.6,
-    });
-    // metalness/roughness kept modest rather than mirror-like — an earlier
-    // attempt at 0.9/0.35 (on the wrong mesh, see above) picked up such a
-    // strong tint from the surrounding body paint that it read as the
-    // body's color instead of its own. This still looks metallic without
-    // fully mirroring whatever's nearby.
-    const rimMaterial = new THREE.MeshStandardMaterial({
-      color: '#2b2b30',
-      metalness: 0.6,
-      roughness: 0.5,
-    });
-    // The reference photos' tires read as glossy/wet, not flat matte
-    // rubber — which also happens to match AO's own "tire dressing"
-    // service (their bullet list literally sells this exact look). A
-    // MeshPhysicalMaterial with a modest clearcoat gets that sheen without
-    // needing an actual tread texture (there isn't one on this asset —
-    // whatever tread-block shape shows is baked into the geometry itself).
-    const tireMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#181818',
-      metalness: 0,
-      roughness: 0.55,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.25,
-      envMapIntensity: 0.8,
-    });
-    // Painted brake calipers — the one deliberate pop of color down there.
-    // Gloss red is the classic sports-car choice.
-    const caliperMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#b3161c',
-      metalness: 0.25,
-      roughness: 0.35,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.2,
-    });
-    // Wheel-arch liner: matte near-black rubber/felt, so the cavity behind
-    // the tire reads as a dark recess instead of a slab of body paint.
-    const linerMaterial = new THREE.MeshStandardMaterial({
-      color: '#0d0d0f',
-      metalness: 0,
-      roughness: 0.95,
-    });
-    // Black lower-bumper trim/valances — satin plastic, not painted.
-    const lowerTrimMaterial = new THREE.MeshStandardMaterial({
-      color: '#151517',
-      metalness: 0.1,
-      roughness: 0.55,
-    });
-    // Tinted but genuinely see-through glass — this mesh also covers the
-    // headlight lenses, which reads fine since real lenses are glass-like
-    // too. There's no modeled interior behind it (this asset never had
-    // one), so pushing transmission any higher than this starts looking
-    // like an empty shell rather than glass with something behind it —
-    // this is the balance point between "looks like solid tinted plastic"
-    // (the old value) and "looks hollow".
-    const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#141b21',
-      metalness: 0,
-      roughness: 0.03,
-      transmission: 0.8,
-      thickness: 0.15,
-      ior: 1.5,
-      envMapIntensity: 1.3,
+    // The light-bar/siren package this file originally came with, its badge
+    // decals, and its interior (unused by any camera shot in this site) were
+    // already cut out of the source geometry during that same conversion —
+    // see the no-emblems note in carConfig.ts.
+    const resolveMaterial = createVehicleMaterialResolver({
+      paintColor: PAINT_COLOR,
+      texturesBaseUrl: TEXTURES_URL,
+      supportsCompressedTextures: gl.extensions.has('WEBGL_compressed_texture_s3tc'),
     });
 
-    scene.updateMatrixWorld(true);
-    let meshIndex = 0;
     scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      for (const box of LETTERING_BOXES.get(meshIndex) ?? []) removeSmallIslandTrianglesInBox(mesh, box, 1000);
-
-      if (EMBLEM_MESH_INDICES.has(meshIndex) || meshIndex === PLATE_MESH_INDEX) {
-        // No badge/crest/plate on the car — see the notes above.
-        mesh.visible = false;
-      } else if (meshIndex === RIM_MESH_INDEX || meshIndex === HUB_MESH_INDEX) {
-        mesh.material = rimMaterial;
-      } else if (meshIndex === ROTOR_MESH_INDEX) {
-        mesh.material = rotorMaterial;
-      } else if (meshIndex === CALIPER_MESH_INDEX) {
-        mesh.material = caliperMaterial;
-      } else if (meshIndex === WHEEL_LINER_MESH_INDEX) {
-        mesh.material = linerMaterial;
-      } else if (meshIndex === LOWER_TRIM_MESH_INDEX) {
-        mesh.material = lowerTrimMaterial;
-      } else if (TIRE_MESH_INDICES.has(meshIndex)) {
-        mesh.material = tireMaterial;
-      } else if (meshIndex === GLASS_MESH_INDEX) {
-        mesh.material = glassMaterial;
-      } else {
-        // Everything else is the body — color comes from PAINT_COLOR (see
-        // carConfig.ts for the reasoning), and the rest of these values push
-        // the baked clearcoat material as close to real automotive paint as
-        // this asset allows, tuned against the reference photos: a lower
-        // base metalness (real metallic car paint is embedded flake under a
-        // clear base, not bare metal, which reads as too "raw" at high
-        // metalness), low roughness, and a tight, glossy clearcoat on top
-        // with a strong HDRI response so reflections read as sharp
-        // highlights rather than a flat sheen.
-        const mat = mesh.material as THREE.MeshPhysicalMaterial;
-        if (mat?.isMeshPhysicalMaterial) {
-          mat.color.set(PAINT_COLOR);
-          mat.metalness = 0.45;
-          mat.roughness = 0.12;
-          mat.clearcoat = 1;
-          mat.clearcoatRoughness = 0.02;
-          mat.envMapIntensity = 1.5;
-        }
+      const originalNames = Array.isArray(mesh.material) ? mesh.material.map((m) => m.name) : [mesh.material.name];
+      // Kept after the swap below (harmless) — lets a raycast diagnostic
+      // recover which *original* .mtl material a triangle came from, since
+      // the runtime materials assigned here don't carry that name. Combine
+      // with intersection.face.materialIndex for an array-material mesh.
+      mesh.userData.originalMaterialNames = originalNames;
+      for (const target of EMBOSSED_LETTERING_TARGETS) {
+        if (mesh.name === target.meshName) removeSmallIslandTrianglesInBox(mesh, target.box, target.maxIslandTriangles);
       }
-      meshIndex++;
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map((m) => resolveMaterial(m.name))
+        : resolveMaterial(mesh.material.name);
     });
 
     const box = new THREE.Box3().setFromObject(scene);
     onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift });
-  }, [scene, camera, onReady, viewShift]);
+  }, [scene, camera, gl, onReady, viewShift]);
 
   return <primitive object={scene} />;
 }

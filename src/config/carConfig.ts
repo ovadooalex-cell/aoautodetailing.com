@@ -7,56 +7,66 @@
  *
  * WHY THIS EXISTS
  * ----------------
- * The hero vehicle is `public/models/porsche/porsche.glb` — a decimated
- * (1.68M → ~222k triangles, via three.js's meshoptimizer-based
- * SimplifyModifier) export of a user-supplied high-detail FBX, repainted in
- * AO's brand color (no usable paint/texture data existed in any of the
- * source files — confirmed directly, not assumed). Full history: the site
- * originally used a Spline-hosted scene of a Dodge Charger; the user then
- * asked for a truck; several free/CC0 and user-supplied assets were dead
- * ends (wrong vehicle, no textures, 3ds Max viewport wire colors mistaken
- * for paint) before landing on this one, explicitly approved by the user.
+ * The hero vehicle is `public/models/tacoma/tacoma.glb` — the second real
+ * asset here (the first was a Porsche-style sports car; the user replaced it
+ * outright with this truck, same site otherwise). Converted from a
+ * user-supplied OBJ + MTL (a modified 2024 Tacoma TRD Pro, user-owned) via a
+ * one-time Node pipeline (three's OBJLoader + mergeVertices + GLTFExporter,
+ * run outside the app and not kept in the repo — only its output, the glb,
+ * ships). The source file came bundled
+ * with a full emergency light-bar/siren rig and a handful of badge decals;
+ * per the standing "no emblems/anything copyrightable" rule, all of that —
+ * the light bar, its mounts and wiring, the badge decals, the front grille
+ * lettering, and the license-plate blanks — was cut at conversion time,
+ * matched by material name and object name, not left in and hidden. The
+ * interior was cut too (not used by any camera shot in this site, and it's
+ * the one part of the source that still had an unremoved badge baked into
+ * its geometry). None of that is recoverable from the shipped glb.
  *
- * NO NAMED SUB-PARTS
- * -------------------
- * Unlike the old Spline scene (which had real `Wheel_FL`/`Wheel_FR`/etc.
- * objects and hand-placed `CamAnchor_*` waypoints), this FBX's 31 meshes are
- * all generically named (`Obj3d66-19917843-N-count`) with no per-part
- * semantics — confirmed by dumping each mesh's bounding box: there's no
- * isolated wheel geometry to target or spin independently. So:
- *   - Camera waypoints here are computed purely from the car's overall
- *     bounding box (computed at runtime after load — see `orbitPose` in
- *     ScrollExperience.tsx), as fractions of its size, the same
- *     "measure, don't guess" approach that fixed the old Spline camera bugs.
- *   - There is no wheel-spin animation in this rebuild — there's no wheel
- *     object to spin. If a future asset has isolated wheel meshes, that
- *     capability can come back.
+ * PART NAMES
+ * -----------
+ * Unlike the old asset (31 meshes with no per-part semantics, matched by
+ * traversal index), this source's ~120 original materials are genuinely
+ * named (`son_xe` = body paint, `wheel2a_diff` = rim, `kieng_xe` =
+ * windshield — the modeler was Vietnamese). CarSceneCanvas.tsx's Model()
+ * resolves real materials by that name at runtime (see lib/vehicleMaterial.ts)
+ * instead of by index — much less fragile than the old scheme, since a name
+ * doesn't shift if the mesh order in the file ever changes.
+ *   - Camera waypoints are still computed purely from the truck's overall
+ *     bounding box (see `buildPose` in ScrollExperience.tsx), as fractions of
+ *     its size — the same "measure, don't guess" approach as before.
+ *   - There IS isolated wheel geometry in this asset (unlike the old one),
+ *     so wheel-spin animation could be added later; not done in this pass.
  *
  * AZIMUTH CONVENTION
  * -------------------
- * `azimuthDeg` orbits around the car's vertical (Y) axis: ~-14°/346° is
- * dead-on front (grille facing the camera — not exactly 0°; verified with
- * an interactive free-fly tool against the real loaded model, not assumed),
- * 90°/-90° are the left/right flanks, 180° is the rear.
+ * `azimuthDeg` orbits around the truck's vertical (Y) axis. TODO: the
+ * "~-14°/346° is dead-on front" figure below was measured against the old
+ * asset's own forward axis — OBJ exports don't share a universal front-axis
+ * convention, so this needs re-verifying against the truck before trusting
+ * it (not yet done as of this asset swap).
  */
 
 export type StageId = 'hero' | 'exterior' | 'side-body' | 'front-end' | 'wheels' | 'reveal';
 
-export const MODEL_URL = '/models/porsche/porsche.glb';
+export const MODEL_URL = '/models/tacoma/tacoma.glb';
 export const HDRI_URL = '/models/hdri/studio.exr';
+/** The truck's real per-part textures (copied straight from the source pack
+ * — see lib/vehicleMaterial.ts for how and why). Not bundled into the glb
+ * itself since they're loaded conditionally (compressed-texture hardware
+ * support permitting). */
+export const TEXTURES_URL = '/models/tacoma/textures/';
 
 /**
- * The car's paint color, applied at runtime in CarSceneCanvas.tsx (this
- * constant used to just sit here unused — the color actually came from
- * whatever was baked into porsche.glb at export time; fixed so there's one
- * real source of truth).
+ * The truck's paint color, applied at runtime in CarSceneCanvas.tsx (via
+ * lib/vehicleMaterial.ts) to the `son_xe` material — real single source of
+ * truth, not baked into the glb.
  *
- * A vivid mid blue, matched by eye against the reference photos the user
- * supplied of a real Porsche 911 — approximating their car's paint color,
- * not copying anything about the reference itself (no badges, plates, or
- * other identifying marks exist on this asset to begin with). AO's brand
- * brass/tan (index.css --color-accent, '#c9973f') was the color here for
- * most of this project; kept as a comment in case of a future revert.
+ * A vivid mid blue, carried over unchanged from the previous (Porsche-style)
+ * asset — matched by eye at the time against reference photos of a real car
+ * in this color, not copying anything else about that reference. AO's brand
+ * brass/tan (index.css --color-accent, '#c9973f') was the color here before
+ * that; kept as a comment in case of a future revert.
  */
 export const PAINT_COLOR = '#2f97d4';
 
