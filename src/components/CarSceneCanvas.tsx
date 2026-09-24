@@ -234,8 +234,17 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
         <CameraRig viewShift={viewShift} />
         <HdriEnvironment url={HDRI_URL} />
         <directionalLight position={[4, 6, 3]} intensity={2} castShadow shadow-mapSize={[2048, 2048]} />
+        {/* Rim/kicker light from the opposite side — a single key light was
+            enough to read a dark blue body (it always had a strong shadow
+            side), but white paint doesn't: without a second light catching
+            its far edge, the hero shot (the car small, far from camera, and
+            sitting in the lightest part of the studio backdrop) nearly
+            disappears into the background. This is the standard product-
+            photography fix for exactly that — a real studio wouldn't shoot a
+            white car with one light either. */}
+        <directionalLight position={[-5, 3, -4]} intensity={0.9} />
         <ambientLight intensity={0.3} />
-        <ContactShadows position={[0, 0, 0]} opacity={0.55} scale={12} blur={2.2} far={3} />
+        <ContactShadows position={[0, 0, 0]} opacity={0.65} scale={12} blur={2} far={3} />
       </Suspense>
     </Canvas>
   );

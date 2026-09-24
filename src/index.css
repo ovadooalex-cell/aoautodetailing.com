@@ -21,7 +21,12 @@
   /* ---- The 3D car's own backdrop: a neutral studio white/grey, distinct
      from the rest of the dark UI — like the car is lit on a studio floor
      inside an otherwise dark, premium site. ---- */
-  --color-studio-bg: #eae8e2;
+  /* Darkened a touch from the original #eae8e2 — with the car now white
+     (was a vivid blue, which had plenty of contrast against any light
+     backdrop on its own), the hero shot's framing puts the car almost
+     exactly in this gradient's brightest, most central point, and the two
+     were close enough in tone to make the truck nearly disappear there. */
+  --color-studio-bg: #d9d6cc;
   --color-studio-bg-edge: #cfccc2;
   --color-studio-scrim: rgba(16, 15, 11, 0.55);
 

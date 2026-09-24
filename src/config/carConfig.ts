@@ -60,15 +60,21 @@ export const TEXTURES_URL = '/models/tacoma/textures/';
 /**
  * The truck's paint color, applied at runtime in CarSceneCanvas.tsx (via
  * lib/vehicleMaterial.ts) to the `son_xe` material — real single source of
- * truth, not baked into the glb.
+ * truth, not baked into the glb. Not something the asset itself defines: the
+ * source .obj/.mtl and even the original .blend leave this material at an
+ * untouched default (checked directly, down to the binary level — see
+ * project memory), so there's no "real" color to inherit from the file.
  *
- * A vivid mid blue, carried over unchanged from the previous (Porsche-style)
- * asset — matched by eye at the time against reference photos of a real car
- * in this color, not copying anything else about that reference. AO's brand
- * brass/tan (index.css --color-accent, '#c9973f') was the color here before
- * that; kept as a comment in case of a future revert.
+ * A clean off-white ("Super White"-style Toyota showroom color), matched by
+ * eye against reference renders of a real white Tacoma TRD Pro the user
+ * supplied — not pure #ffffff, which reads flat/plastic under the HDRI; a
+ * touch of warmth keeps the clearcoat looking like real paint.
+ *
+ * Previously a vivid mid blue (kept as a comment in case of a future
+ * revert): '#2f97d4'. Before that, AO's brand brass/tan (index.css
+ * --color-accent, '#c9973f').
  */
-export const PAINT_COLOR = '#2f97d4';
+export const PAINT_COLOR = '#f6f5f0';
 
 export interface OrbitPoseParams {
   /** Degrees around the car's Y axis — 0 = dead-on front, 90 = right flank, 180 = rear. */
