@@ -50,6 +50,19 @@
 export type StageId = 'hero' | 'exterior' | 'side-body' | 'front-end' | 'wheels' | 'reveal';
 
 export const MODEL_URL = '/models/tacoma/tacoma.glb';
+/**
+ * A decimated copy for phones/tablets (see useLightweightScene), built by a
+ * one-time Node pass (GLTFLoader -> tiered SimplifyModifier -> GLTFExporter,
+ * not kept in the repo — see reference-vehicle-asset-pipeline memory): big,
+ * simplify-friendly meshes (the 3D tire tread, repeated per wheel; large
+ * smooth body panels like the grille frame) cut to ~25% of their triangles,
+ * mid-size meshes to ~45%, small detail meshes (trim, lights, mirrors) left
+ * untouched. 303k triangles -> 165k (46% fewer) at roughly the same file
+ * size. Built in response to the truck reading as "choppy" on a real phone
+ * even after the texture/HDRI/shadow cuts below — the geometry itself was
+ * still the same on mobile as desktop.
+ */
+export const MODEL_URL_MOBILE = '/models/tacoma/tacoma-mobile.glb';
 export const HDRI_URL = '/models/hdri/studio.exr';
 /** The truck's real per-part textures (copied straight from the source pack
  * — see lib/vehicleMaterial.ts for how and why). Not bundled into the glb

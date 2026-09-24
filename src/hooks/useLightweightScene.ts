@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 
 /** The site's own mobile-layout breakpoint (900px, used throughout the CSS)
  * plus a touch/coarse-pointer check — catches tablets that are wider than
- * that (an iPad in landscape is ~1024px) but still have phone-class GPUs. */
-const QUERY = '(max-width: 900px), (pointer: coarse)';
+ * that (an iPad in landscape is ~1024px) but still have phone-class GPUs.
+ * Exported so the one other place that needs this decision outside React
+ * (CarSceneCanvas.tsx's module-level model preload) uses the exact same
+ * query rather than a second copy that could drift out of sync. */
+export const LIGHTWEIGHT_SCENE_QUERY = '(max-width: 900px), (pointer: coarse)';
 
 /**
  * True on phones/tablets. Drives a stripped-down render path for the 3D
@@ -18,11 +21,11 @@ const QUERY = '(max-width: 900px), (pointer: coarse)';
  */
 export function useLightweightScene(): boolean {
   const [lightweight, setLightweight] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(QUERY).matches,
+    () => typeof window !== 'undefined' && window.matchMedia(LIGHTWEIGHT_SCENE_QUERY).matches,
   );
 
   useEffect(() => {
-    const mq = window.matchMedia(QUERY);
+    const mq = window.matchMedia(LIGHTWEIGHT_SCENE_QUERY);
     const onChange = () => setLightweight(mq.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);

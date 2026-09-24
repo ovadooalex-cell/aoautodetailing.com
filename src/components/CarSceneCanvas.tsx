@@ -3,10 +3,10 @@ import { Canvas, useThree, useLoader, useFrame } from '@react-three/fiber';
 import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import * as THREE from 'three';
-import { MODEL_URL, HDRI_URL, PAINT_COLOR, TEXTURES_URL } from '../config/carConfig';
+import { MODEL_URL, MODEL_URL_MOBILE, HDRI_URL, PAINT_COLOR, TEXTURES_URL } from '../config/carConfig';
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
-import { useLightweightScene } from '../hooks/useLightweightScene';
+import { useLightweightScene, LIGHTWEIGHT_SCENE_QUERY } from '../hooks/useLightweightScene';
 import type { CarSceneHandle } from './CarScene';
 
 // Two spots turned out to have raised lettering molded into the geometry
@@ -63,6 +63,23 @@ const EMBOSSED_LETTERING_TARGETS: { meshName: string; box: THREE.Box3; maxIsland
     box: WHOLE_MESH_BOX,
     maxIslandTriangles: 200,
   })),
+  // "TRD PRO" embossed across the tailgate, plus a smaller badge near the
+  // right tail light — found *after* the mobile LOD shipped, when its
+  // flatter lighting made both noticeably more legible than they'd been on
+  // desktop (same lesson as the caliper text: a flat placeholder color can
+  // hide embossed detail that a different light or material later exposes,
+  // so a "no emblems" pass done once isn't necessarily done for good). One
+  // mesh, "mesh_2" (the tailgate panel): a single 908-triangle body plus ~70
+  // small islands (4–148 triangles each, 1002 triangles combined) that are
+  // the lettering, the badge, and a few incidental details (a handle
+  // recess, hinge lines) — no clean way to separate those from the lettering
+  // by position (they're intermixed across the same panel), so all of them
+  // go, matching the caliper precedent of accepting a little collateral
+  // detail loss in exchange for a guaranteed clean read. Confirmed this one
+  // fix covers both the mobile LOD and the desktop model — the removal runs
+  // at runtime against whichever glb loaded, not baked into either file, and
+  // simplification doesn't fuse originally-disconnected islands together.
+  { meshName: 'mesh_2', box: WHOLE_MESH_BOX, maxIslandTriangles: 300 },
 ];
 
 /**
@@ -82,13 +99,18 @@ function Model({
   viewShift: CarSceneHandle['viewShift'];
   lightweight: boolean;
 }) {
-  const { scene } = useGLTF(MODEL_URL);
+  const { scene } = useGLTF(lightweight ? MODEL_URL_MOBILE : MODEL_URL);
   const { camera, gl } = useThree();
-  const readyRef = useRef(false);
+  // Guards against StrictMode's double-effect-invoke re-processing the SAME
+  // scene twice — but keyed by scene identity, not a plain boolean, so it
+  // does NOT block a genuinely new scene from being processed (crossing the
+  // useLightweightScene breakpoint mid-session, e.g. rotating a tablet,
+  // swaps in the other glb, which drei's useGLTF surfaces as a new object).
+  const processedSceneRef = useRef<THREE.Object3D | null>(null);
 
   useEffect(() => {
-    if (readyRef.current) return;
-    readyRef.current = true;
+    if (processedSceneRef.current === scene) return;
+    processedSceneRef.current = scene;
 
     // Unlike the old Porsche asset (31 anonymous meshes, matched by fragile
     // traversal index), this truck's ~120 original .mtl materials are
@@ -291,4 +313,14 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
   );
 }
 
-useGLTF.preload(MODEL_URL);
+// Preload only the model this device will actually use — preloading both
+// would download both. Same matchMedia query as useLightweightScene, just
+// read once here since preload runs at module init, outside React (a resize
+// across the breakpoint after this doesn't need a second preload — Model's
+// own useGLTF call below still fetches the other one, just without the
+// head start).
+if (typeof window !== 'undefined' && window.matchMedia(LIGHTWEIGHT_SCENE_QUERY).matches) {
+  useGLTF.preload(MODEL_URL_MOBILE);
+} else {
+  useGLTF.preload(MODEL_URL);
+}
