@@ -113,7 +113,9 @@ const DIFFUSE_TEXTURE_FILES: Record<string, string> = {
   'rgbab60000ff_drk.008': 'rgbab60000ff_drk.dds',
   'rgbab60000ff_drk.009': 'rgbab60000ff_drk.dds',
   rgbab6b6b6ff_dark: 'rgbab6b6b6ff_DARK.dds',
-  veh_lits: 'veh_lits.dds',
+  // veh_lits.dds is deliberately NOT listed here — see the note on `litLens`
+  // below: 5.6MB of the site's ~14MB of textures for a couple of small
+  // reverse-light/plate-light lenses was a bad trade even on desktop.
   vehicle_generic_detail2: 'vehicle_generic_detail2.dds',
   'vehicle_generic_doorshut_[PRIMARY]': 'vehicle_generic_doorshut.dds',
   'vehicle_generic_smallspecmap_[INTERIOR_TRIM]': 'vehicle_generic_smallspecmap.dds',
@@ -309,9 +311,10 @@ export function createVehicleMaterialResolver({
       envMapIntensity: 1.2,
     }));
   // Reverse-light / plate-light lens — same look as the headlight lens
-  // above, but `veh_lits` DOES have a real (if disproportionately large,
-  // 5.6MB for a couple of small lenses — see the report this was flagged
-  // in) texture, so it goes through `build()` instead of a flat share.
+  // above. `veh_lits` did have a real texture in the source, but at 5.6MB
+  // for a couple of small lenses it wasn't worth shipping (see
+  // DIFFUSE_TEXTURE_FILES); still routed through `build()` rather than
+  // folded into `lens()` in case that math changes for some other name.
   const litLens = (name: string) => build('litLens', name, { color: '#f0f0ee', metalness: 0, roughness: 0.12 });
   const chrome = (name: string) => build('chrome', name, { color: '#d8d8da', metalness: 1, roughness: 0.06 });
   const rim = (name: string) => build('rim', name, { color: '#2b2b30', metalness: 0.6, roughness: 0.5 });

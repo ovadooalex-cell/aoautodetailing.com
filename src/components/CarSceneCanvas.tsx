@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { MODEL_URL, HDRI_URL, PAINT_COLOR, TEXTURES_URL } from '../config/carConfig';
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
+import { useLightweightScene } from '../hooks/useLightweightScene';
 import type { CarSceneHandle } from './CarScene';
 
 // Two spots turned out to have raised lettering molded into the geometry
@@ -72,7 +73,15 @@ const EMBOSSED_LETTERING_TARGETS: { meshName: string; box: THREE.Box3; maxIsland
  * @splinetool/react-spline for the same reason.
  */
 
-function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => void; viewShift: CarSceneHandle['viewShift'] }) {
+function Model({
+  onReady,
+  viewShift,
+  lightweight,
+}: {
+  onReady: (handle: CarSceneHandle) => void;
+  viewShift: CarSceneHandle['viewShift'];
+  lightweight: boolean;
+}) {
   const { scene } = useGLTF(MODEL_URL);
   const { camera, gl } = useThree();
   const readyRef = useRef(false);
@@ -96,17 +105,27 @@ function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => vo
     // decals, and its interior (unused by any camera shot in this site) were
     // already cut out of the source geometry during that same conversion —
     // see the no-emblems note in carConfig.ts.
+    //
+    // `lightweight` (phones/tablets — see useLightweightScene) skips the
+    // real textures even on hardware that could technically display them:
+    // the point isn't just decode support, it's the ~8MB of downloads they
+    // cost, which matters far more on a phone connection than on desktop.
+    // Flat colors are the same fallback already used for hardware that
+    // lacks compressed-texture support outright.
     const resolveMaterial = createVehicleMaterialResolver({
       paintColor: PAINT_COLOR,
       texturesBaseUrl: TEXTURES_URL,
-      supportsCompressedTextures: gl.extensions.has('WEBGL_compressed_texture_s3tc'),
+      supportsCompressedTextures: !lightweight && gl.extensions.has('WEBGL_compressed_texture_s3tc'),
     });
 
     scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      // Shadow casting/receiving is moot when lightweight also turns off the
+      // Canvas's own shadow maps below, but skipping the flags too avoids
+      // even the bookkeeping cost across 95 meshes.
+      mesh.castShadow = !lightweight;
+      mesh.receiveShadow = !lightweight;
       const originalNames = Array.isArray(mesh.material) ? mesh.material.map((m) => m.name) : [mesh.material.name];
       // Kept after the swap below (harmless) — lets a raycast diagnostic
       // recover which *original* .mtl material a triangle came from, since
@@ -123,7 +142,7 @@ function Model({ onReady, viewShift }: { onReady: (handle: CarSceneHandle) => vo
 
     const box = new THREE.Box3().setFromObject(scene);
     onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift });
-  }, [scene, camera, gl, onReady, viewShift]);
+  }, [scene, camera, gl, onReady, viewShift, lightweight]);
 
   return <primitive object={scene} />;
 }
@@ -209,6 +228,8 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
   // Stable object identity for the life of the canvas — GSAP mutates it, the
   // rig reads it; deliberately not React state (it changes every scrub tick).
   const [viewShift] = useState(() => ({ x: 0, y: 0 }));
+  const lightweight = useLightweightScene();
+
   return (
     <Canvas
       className="car-scene__canvas"
@@ -217,10 +238,17 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
       // using PCFShadowMap instead" warning on every single frame it
       // renders. Asking for PCFShadowMap directly gets the same result
       // (three.js was silently substituting it anyway) with no warning.
-      shadows={{ type: THREE.PCFShadowMap }}
+      // `lightweight`: a real-time shadow map is one of the more expensive
+      // things a mobile GPU can be asked to do every frame — off entirely
+      // there (ContactShadows below gives up a soft blob under the car
+      // regardless, which reads as "grounded" well enough without it).
+      shadows={lightweight ? false : { type: THREE.PCFShadowMap }}
       camera={{ fov: 32, near: 0.1, far: 100 }}
-      dpr={[1, 1.75]}
-      gl={{ antialias: true }}
+      // Capped at native resolution (no 1.75x supersample) on phones —
+      // rendering every fragment shader twice-plus for a retina display
+      // that's also usually the weakest GPU in the room isn't worth it.
+      dpr={lightweight ? 1 : [1, 1.75]}
+      gl={{ antialias: !lightweight }}
       onCreated={({ gl }) => {
         // Filmic tone mapping — the same curve real product-photography
         // renderers use — so the HDRI's highlights roll off naturally
@@ -230,10 +258,21 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
       }}
     >
       <Suspense fallback={null}>
-        <Model onReady={onReady} viewShift={viewShift} />
+        <Model onReady={onReady} viewShift={viewShift} lightweight={lightweight} />
         <CameraRig viewShift={viewShift} />
-        <HdriEnvironment url={HDRI_URL} />
-        <directionalLight position={[4, 6, 3]} intensity={2} castShadow shadow-mapSize={[2048, 2048]} />
+        {/* HDRI reflections are the biggest single line item here (5.6MB, plus
+            the CPU cost of decoding + convolving it into a reflection map) for
+            a purely cosmetic upgrade over plain directional/ambient light —
+            skipped on phones, where that download and that CPU work both cost
+            more and matter more. Lights below are boosted a step on
+            `lightweight` to make up some of the lost fill. */}
+        {!lightweight && <HdriEnvironment url={HDRI_URL} />}
+        <directionalLight
+          position={[4, 6, 3]}
+          intensity={lightweight ? 2.4 : 2}
+          castShadow={!lightweight}
+          shadow-mapSize={[2048, 2048]}
+        />
         {/* Rim/kicker light from the opposite side — a single key light was
             enough to read a dark blue body (it always had a strong shadow
             side), but white paint doesn't: without a second light catching
@@ -241,10 +280,12 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
             sitting in the lightest part of the studio backdrop) nearly
             disappears into the background. This is the standard product-
             photography fix for exactly that — a real studio wouldn't shoot a
-            white car with one light either. */}
-        <directionalLight position={[-5, 3, -4]} intensity={0.9} />
-        <ambientLight intensity={0.3} />
-        <ContactShadows position={[0, 0, 0]} opacity={0.65} scale={12} blur={2} far={3} />
+            white car with one light either. Kept on `lightweight` too (it's
+            just one more light, not a real cost) since there's no HDRI fill
+            there to lean on instead. */}
+        <directionalLight position={[-5, 3, -4]} intensity={lightweight ? 1.1 : 0.9} />
+        <ambientLight intensity={lightweight ? 0.45 : 0.3} />
+        {!lightweight && <ContactShadows position={[0, 0, 0]} opacity={0.65} scale={12} blur={2} far={3} />}
       </Suspense>
     </Canvas>
   );
