@@ -205,6 +205,16 @@ export interface MaterialResolverOptions {
   /** From `gl.extensions.has('WEBGL_compressed_texture_s3tc')` — false skips
    * all texture loading and keeps every material on its flat fallback color. */
   supportsCompressedTextures: boolean;
+  /** Phones/tablets (see useLightweightScene). `transmission` (real glass
+   * refraction — windshield, side glass, headlight/taillight lenses) makes
+   * three.js render an extra full-scene pass into an offscreen buffer every
+   * frame so it can sample what's behind the surface — one of the most
+   * expensive single features a WebGL renderer can be asked for, and paid
+   * every frame regardless of triangle count. When true, those materials
+   * fall back to ordinary alpha-blended transparency instead — cheaper by a
+   * whole render pass, and visually close enough for small window/lens
+   * panels that were never the focal point of any camera stage. */
+  cheapTransmission: boolean;
 }
 
 interface FlatParams {
@@ -217,6 +227,8 @@ interface FlatParams {
   thickness?: number;
   ior?: number;
   envMapIntensity?: number;
+  transparent?: boolean;
+  opacity?: number;
 }
 
 /**
@@ -230,6 +242,7 @@ export function createVehicleMaterialResolver({
   paintColor,
   texturesBaseUrl,
   supportsCompressedTextures,
+  cheapTransmission,
 }: MaterialResolverOptions) {
   const cache = new Map<string, THREE.Material>();
   const shared = (key: string, build: () => THREE.Material) => {
@@ -239,6 +252,16 @@ export function createVehicleMaterialResolver({
       cache.set(key, mat);
     }
     return mat;
+  };
+
+  // Same "why" as `glassLike` below — any FlatParams that carries
+  // `transmission` (the amber/red indicator lenses, routed through `build()`
+  // or built directly rather than through `glassLike`) gets the same cheap
+  // swap on mobile.
+  const cheapenTransmission = (params: FlatParams): FlatParams => {
+    if (!cheapTransmission || params.transmission === undefined) return params;
+    const { transmission, thickness: _thickness, ior: _ior, ...rest } = params;
+    return { ...rest, transparent: true, opacity: 1 - transmission * 0.75 };
   };
 
   const ddsLoader = new DDSLoader();
@@ -265,7 +288,8 @@ export function createVehicleMaterialResolver({
    * color otherwise (so, e.g., two different near-black fallbacks collapse
    * into one material too).
    */
-  const build = (categoryKey: string, name: string, params: FlatParams): THREE.Material => {
+  const build = (categoryKey: string, name: string, rawParams: FlatParams): THREE.Material => {
+    const params = cheapenTransmission(rawParams);
     const file = DIFFUSE_TEXTURE_FILES[name];
     if (file && supportsCompressedTextures) {
       return shared(`tex:${file}`, () => new THREE.MeshPhysicalMaterial({ ...params, map: loadDiffuseTexture(file) }));
@@ -287,8 +311,24 @@ export function createVehicleMaterialResolver({
       clearcoatRoughness: 0.02,
       envMapIntensity: 1.5,
     }));
+  // Real `transmission` params vs. the `cheapTransmission` (mobile) fallback
+  // for the same visual role — see the option's doc comment on why this
+  // split exists. The fallback keeps color/metalness/roughness/envMapIntensity
+  // and swaps refraction for plain alpha blending; `transmission` maps to a
+  // roughly comparable opacity (glass at 0.8 transmission ~ 92% see-through,
+  // so opacity 0.35 rather than a literal `1 - transmission`, which would
+  // read as far too solid).
+  const glassLike = (
+    key: string,
+    { transmission, thickness, ior, ...rest }: { color: string; metalness: number; roughness: number; transmission: number; thickness: number; ior: number; envMapIntensity: number },
+  ) =>
+    shared(key, () =>
+      cheapTransmission
+        ? new THREE.MeshPhysicalMaterial({ ...rest, transparent: true, opacity: 1 - transmission * 0.75 })
+        : new THREE.MeshPhysicalMaterial({ ...rest, transmission, thickness, ior }),
+    );
   const glass = () =>
-    shared('__glass', () => new THREE.MeshPhysicalMaterial({
+    glassLike('__glass', {
       color: '#141b21',
       metalness: 0,
       roughness: 0.03,
@@ -296,12 +336,12 @@ export function createVehicleMaterialResolver({
       thickness: 0.15,
       ior: 1.5,
       envMapIntensity: 1.3,
-    }));
+    });
   // Clear plastic lens (headlight housings) — distinct from the tinted cabin
   // glass above; these should read bright, not dark. No texture in the
   // source for this one (`kieng_den_1`).
   const lens = () =>
-    shared('__lens', () => new THREE.MeshPhysicalMaterial({
+    glassLike('__lens', {
       color: '#f0f0ee',
       metalness: 0,
       roughness: 0.08,
@@ -309,7 +349,7 @@ export function createVehicleMaterialResolver({
       thickness: 0.05,
       ior: 1.45,
       envMapIntensity: 1.2,
-    }));
+    });
   // Reverse-light / plate-light lens — same look as the headlight lens
   // above. `veh_lits` did have a real texture in the source, but at 5.6MB
   // for a couple of small lenses it wasn't worth shipping (see
@@ -340,13 +380,13 @@ export function createVehicleMaterialResolver({
   const amberLens = (name: string) =>
     build('amberLens', name, { color: '#ffb020', metalness: 0, roughness: 0.15, transmission: 0.35, ior: 1.45 });
   const redLens = () =>
-    shared('__redLens', () => new THREE.MeshPhysicalMaterial({
+    shared('__redLens', () => new THREE.MeshPhysicalMaterial(cheapenTransmission({
       color: '#8a0f10',
       metalness: 0,
       roughness: 0.15,
       transmission: 0.35,
       ior: 1.45,
-    }));
+    })));
   const trim = (name: string) => build('trim', name, { color: colorFromName(name), metalness: 0.15, roughness: 0.6 });
 
   return function resolve(name: string): THREE.Material {

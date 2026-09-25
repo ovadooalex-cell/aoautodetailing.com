@@ -27,14 +27,25 @@ export interface CarSceneHandle {
    * frame. Fractions of canvas width/height; positive x = car slides LEFT,
    * positive y = car slides DOWN (see VIEW_SHIFT in carConfig.ts). */
   viewShift: { x: number; y: number };
+  /** True on phones/tablets (see useLightweightScene) — lets ScrollExperience
+   * pull every camera waypoint back by MOBILE_DISTANCE_SCALE (carConfig.ts). */
+  lightweight: boolean;
 }
 
 interface CarSceneProps {
   /** Called once with the live camera + loaded model after the glb is in the scene. */
   onReady: (handle: CarSceneHandle) => void;
+  /** False pauses the Canvas's render loop entirely (no GPU work at all, not
+   * even a stopped frame) — for when the scroll-pinned scene has scrolled
+   * out of view (see ScrollExperience.tsx's IntersectionObserver). Safe to
+   * pause: the GSAP scroll timeline that drives the camera only updates
+   * while its own trigger is in view too, so there's nothing to miss while
+   * paused. Defaults to true (always rendering) so the reduced-motion
+   * fallback below, which has no such observer, is unaffected. */
+  active?: boolean;
 }
 
-export default function CarScene({ onReady }: CarSceneProps) {
+export default function CarScene({ onReady, active = true }: CarSceneProps) {
   const [loadFailed, setLoadFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -60,7 +71,7 @@ export default function CarScene({ onReady }: CarSceneProps) {
       {!loadFailed && (
         <CarSceneErrorBoundary fallback={null} onError={handleError}>
           <Suspense fallback={null}>
-            <CarSceneCanvas onReady={handleReady} />
+            <CarSceneCanvas onReady={handleReady} active={active} />
           </Suspense>
         </CarSceneErrorBoundary>
       )}

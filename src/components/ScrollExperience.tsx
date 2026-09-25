@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import * as THREE from 'three';
@@ -9,7 +9,7 @@ import InfoPanel from './InfoPanel';
 import FinalReveal from './FinalReveal';
 import { getStage, DETAIL_STAGES } from '../data/services';
 import type { ServiceStage } from '../data/services';
-import { STAGE_POSE, ORBIT_STAGE, VIEW_SHIFT } from '../config/carConfig';
+import { STAGE_POSE, ORBIT_STAGE, VIEW_SHIFT, MOBILE_DISTANCE_SCALE } from '../config/carConfig';
 import type { StageId, OrbitPoseParams } from '../config/carConfig';
 import { STAGE_BOUNDARIES, NO_PANEL_STAGE_IDS, EXPERIENCE_HEIGHT_VH, getActiveStageId } from '../config/scrollStages';
 import { clamp, degToRad, lookAtEuler, radToDeg, unwrapAngleTowards } from '../lib/math';
@@ -58,9 +58,26 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
 
   const [activeStageId, setActiveStageId] = useState<StageId>('hero');
   const [activeSubHighlight, setActiveSubHighlight] = useState(-1);
+  // Drives the 3D canvas's render loop — see CarScene.tsx's `active` prop.
+  // Starts true: the experience is the first section on the page, so it's
+  // on screen before the observer below has run its first check.
+  const [sceneActive, setSceneActive] = useState(true);
+
+  useEffect(() => {
+    const el = experienceRef.current;
+    if (!el) return;
+    // rootMargin gives the canvas a head start so rendering resumes just
+    // before the pinned section scrolls back into view, not exactly on the
+    // pixel edge — avoids a visible one-frame-stale pop.
+    const observer = new IntersectionObserver(([entry]) => setSceneActive(entry.isIntersecting), {
+      rootMargin: '200px 0px',
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // ---- Wire the real Three.js camera into the master scroll timeline ----
-  const handleSceneReady = useCallback(({ camera, box, viewShift }: CarSceneHandle) => {
+  const handleSceneReady = useCallback(({ camera, box, viewShift, lightweight }: CarSceneHandle) => {
     // ---- Facts about the car, measured from its real bounding box — the
     // same "compute from geometry, never guess/trust an opaque source"
     // discipline that fixed every camera bug in the old Spline version of
@@ -73,7 +90,7 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
 
     const buildPose = (params: OrbitPoseParams): Pose => {
       const azimuthRad = degToRad(params.azimuthDeg);
-      const distance = params.distanceFrac * maxHorizontal;
+      const distance = params.distanceFrac * maxHorizontal * (lightweight ? MOBILE_DISTANCE_SCALE : 1);
       const position: Vec3 = {
         x: boxCenter.x + Math.sin(azimuthRad) * distance,
         y: groundY + params.elevationFrac * boxSize.y,
@@ -283,7 +300,7 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
 
       <div className="experience__pin" ref={pinRef}>
         <div className="car-scene-transform">
-          <CarScene onReady={handleSceneReady} />
+          <CarScene onReady={handleSceneReady} active={sceneActive} />
           <div className="car-scene__glow" ref={glowRef} aria-hidden="true" />
         </div>
 

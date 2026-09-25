@@ -138,6 +138,7 @@ function Model({
       paintColor: PAINT_COLOR,
       texturesBaseUrl: TEXTURES_URL,
       supportsCompressedTextures: !lightweight && gl.extensions.has('WEBGL_compressed_texture_s3tc'),
+      cheapTransmission: lightweight,
     });
 
     scene.traverse((obj) => {
@@ -163,7 +164,7 @@ function Model({
     });
 
     const box = new THREE.Box3().setFromObject(scene);
-    onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift });
+    onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift, lightweight });
   }, [scene, camera, gl, onReady, viewShift, lightweight]);
 
   return <primitive object={scene} />;
@@ -246,7 +247,14 @@ function CameraRig({ viewShift }: { viewShift: CarSceneHandle['viewShift'] }) {
   return null;
 }
 
-export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarSceneHandle) => void }) {
+export default function CarSceneCanvas({
+  onReady,
+  active = true,
+}: {
+  onReady: (handle: CarSceneHandle) => void;
+  /** false stops R3F's internal render loop entirely — see CarScene.tsx. */
+  active?: boolean;
+}) {
   // Stable object identity for the life of the canvas — GSAP mutates it, the
   // rig reads it; deliberately not React state (it changes every scrub tick).
   const [viewShift] = useState(() => ({ x: 0, y: 0 }));
@@ -255,6 +263,11 @@ export default function CarSceneCanvas({ onReady }: { onReady: (handle: CarScene
   return (
     <Canvas
       className="car-scene__canvas"
+      // 'never': zero rendering, not even a stopped/idle frame, while the
+      // pinned scroll section is off-screen (see CarScene.tsx's `active`).
+      // Toggling this prop is R3F's documented way to start/stop its
+      // internal requestAnimationFrame loop on demand.
+      frameloop={active ? 'always' : 'never'}
       // R3F's plain `shadows` boolean requests THREE.PCFSoftShadowMap, which
       // this three.js version no longer implements — it logs a "removed,
       // using PCFShadowMap instead" warning on every single frame it

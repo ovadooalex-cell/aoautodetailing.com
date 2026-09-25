@@ -63,6 +63,25 @@ export const MODEL_URL = '/models/tacoma/tacoma.glb';
  * still the same on mobile as desktop.
  */
 export const MODEL_URL_MOBILE = '/models/tacoma/tacoma-mobile.glb';
+
+/**
+ * Every camera waypoint's `distanceFrac` (see OrbitPoseParams/STAGE_POSE
+ * below) is multiplied by this on phones/tablets (see useLightweightScene).
+ *
+ * Why: CameraRig (CarSceneCanvas.tsx) widens the vertical FOV as the canvas
+ * aspect narrows, to hold the same *horizontal* field of view across
+ * desktop/mobile — but that widening is capped (MAX_FOV, 62°) to avoid a
+ * fisheye look. A portrait phone's aspect is narrow enough to hit that cap
+ * well before the horizontal FOV catches up to desktop's, so at the
+ * distances tuned for desktop the truck read as cropped/oversized on a real
+ * iPhone screenshot — "the car takes up too much space". Pulling the camera
+ * back compensates directly (real product-photography technique: back up
+ * instead of fisheye-ing the lens), rather than fighting it with more FOV.
+ * Safe re: showing the underside — elevation is a fixed fraction of the
+ * car's own height, so backing away only makes the look-down angle
+ * shallower, never negative.
+ */
+export const MOBILE_DISTANCE_SCALE = 1.45;
 export const HDRI_URL = '/models/hdri/studio.exr';
 /** The truck's real per-part textures (copied straight from the source pack
  * — see lib/vehicleMaterial.ts for how and why). Not bundled into the glb
