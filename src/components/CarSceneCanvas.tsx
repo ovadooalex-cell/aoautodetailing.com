@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useThree, useLoader, useFrame } from '@react-three/fiber';
 import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import * as THREE from 'three';
 import { MODEL_URL, MODEL_URL_MOBILE, HDRI_URL, PAINT_COLOR, TEXTURES_URL } from '../config/carConfig';
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
@@ -208,6 +209,39 @@ function HdriEnvironment({ url }: { url: string }) {
 }
 
 /**
+ * Mobile's counterpart to HdriEnvironment above — same job (give the paint's
+ * clearcoat/metalness something to reflect, which is most of what makes it
+ * read as glossy "hero shot" paint instead of flat/matte), without the
+ * desktop HDRI's cost. `RoomEnvironment` is three.js's own stock env-map
+ * source for exactly this: a tiny procedural scene (a handful of boxes and
+ * emissive "light" panels, no textures) baked into a PMREM once at mount —
+ * zero network download, one small one-time GPU cost instead of a per-frame
+ * one. This is the documented, standard way to give PBR materials believable
+ * reflections when a real photographic HDRI is too heavy — not a
+ * lower-quality substitute so much as the appropriately-scaled one here.
+ */
+function ProceduralEnvironment() {
+  const { gl, scene } = useThree();
+
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const envMap = pmrem.fromScene(room).texture;
+    // oxlint-disable-next-line react/immutability
+    scene.environment = envMap;
+    room.dispose();
+    pmrem.dispose();
+    return () => {
+      envMap.dispose();
+      // oxlint-disable-next-line react/immutability
+      if (scene.environment === envMap) scene.environment = null;
+    };
+  }, [gl, scene]);
+
+  return null;
+}
+
+/**
  * Per-frame camera adjustments that depend on the canvas, not on the scroll
  * story (the scroll timeline owns position/rotation; this owns the lens):
  *
@@ -304,13 +338,16 @@ export default function CarSceneCanvas({
       <Suspense fallback={null}>
         <Model onReady={onReady} viewShift={viewShift} lightweight={lightweight} />
         <CameraRig viewShift={viewShift} />
-        {/* HDRI reflections are the biggest single line item here (5.6MB, plus
-            the CPU cost of decoding + convolving it into a reflection map) for
-            a purely cosmetic upgrade over plain directional/ambient light —
-            skipped on phones, where that download and that CPU work both cost
-            more and matter more. Lights below are boosted a step on
-            `lightweight` to make up some of the lost fill. */}
-        {!lightweight && <HdriEnvironment url={HDRI_URL} />}
+        {/* The real photographic HDRI is the biggest single line item here
+            (5.6MB, plus the CPU cost of decoding + convolving it into a
+            reflection map) — skipped on phones, where that download costs
+            more and matters more. Its job (giving the paint's clearcoat
+            something to reflect, without which it reads flat instead of
+            glossy) still matters on mobile, so ProceduralEnvironment covers
+            it there for effectively free instead of going without. Lights
+            below are boosted a step on `lightweight` to make up the rest of
+            the difference from the real HDRI's own fill light. */}
+        {lightweight ? <ProceduralEnvironment /> : <HdriEnvironment url={HDRI_URL} />}
         <directionalLight
           position={[4, 6, 3]}
           intensity={lightweight ? 2.4 : 2}
@@ -329,7 +366,19 @@ export default function CarSceneCanvas({
             there to lean on instead. */}
         <directionalLight position={[-5, 3, -4]} intensity={lightweight ? 1.1 : 0.9} />
         <ambientLight intensity={lightweight ? 0.45 : 0.3} />
-        {!lightweight && <ContactShadows position={[0, 0, 0]} opacity={0.65} scale={12} blur={2} far={3} />}
+        {/* The car's geometry never moves relative to the ground (only the
+            camera does), so the shadow itself never changes — `frames={1}`
+            on mobile bakes it exactly once at mount instead of every frame,
+            same visual result as desktop's continuously-updating version at
+            a small fraction of the cost. */}
+        <ContactShadows
+          position={[0, 0, 0]}
+          opacity={0.65}
+          scale={12}
+          blur={2}
+          far={3}
+          frames={lightweight ? 1 : Infinity}
+        />
       </Suspense>
     </Canvas>
   );
