@@ -226,7 +226,15 @@ function ProceduralEnvironment() {
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     const room = new RoomEnvironment();
-    const envMap = pmrem.fromScene(room).texture;
+    // sigma (2nd arg) pre-blurs the equirect before baking the PMREM.
+    // RoomEnvironment's "lights" are small, very bright emissive panels
+    // (intensity up to 100) — without this they bake into hard, hot
+    // reflection hotspots on any glossy clearcoat surface (showed up as an
+    // unnaturally bright white patch on the tire sidewall/fender). This is
+    // the standard pairing for this exact utility (matches three.js's own
+    // published usage of RoomEnvironment) — softens the highlight into a
+    // normal-looking reflection instead of removing reflections altogether.
+    const envMap = pmrem.fromScene(room, 0.04).texture;
     // oxlint-disable-next-line react/immutability
     scene.environment = envMap;
     room.dispose();

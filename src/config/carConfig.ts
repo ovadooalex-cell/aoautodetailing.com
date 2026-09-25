@@ -80,8 +80,11 @@ export const MODEL_URL_MOBILE = '/models/tacoma/tacoma-mobile.glb';
  * Safe re: showing the underside — elevation is a fixed fraction of the
  * car's own height, so backing away only makes the look-down angle
  * shallower, never negative.
+ *
+ * 1.45 initially (matched the "too much space" complaint); brought in to
+ * 1.25 after the user liked the overall look but asked to zoom in a bit more.
  */
-export const MOBILE_DISTANCE_SCALE = 1.45;
+export const MOBILE_DISTANCE_SCALE = 1.25;
 export const HDRI_URL = '/models/hdri/studio.exr';
 /** The truck's real per-part textures (copied straight from the source pack
  * — see lib/vehicleMaterial.ts for how and why). Not bundled into the glb
