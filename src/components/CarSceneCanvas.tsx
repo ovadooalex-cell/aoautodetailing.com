@@ -279,11 +279,20 @@ export default function CarSceneCanvas({
       // regardless, which reads as "grounded" well enough without it).
       shadows={lightweight ? false : { type: THREE.PCFShadowMap }}
       camera={{ fov: 32, near: 0.1, far: 100 }}
-      // Capped at native resolution (no 1.75x supersample) on phones —
-      // rendering every fragment shader twice-plus for a retina display
-      // that's also usually the weakest GPU in the room isn't worth it.
-      dpr={lightweight ? 1 : [1, 1.75]}
-      gl={{ antialias: !lightweight }}
+      // A flat `1` here (a real iPhone's devicePixelRatio is 2-3x) read as
+      // soft/pixelated on an actual Retina screen — the canvas was rendering
+      // at a third of the display's native pixel grid and stretching to
+      // fill it. 1.5 is the documented sweet spot for mobile three.js scenes
+      // (enough sharpness to not look upscaled, well short of the 2-3x that
+      // would burn real GPU time supersampling every fragment shader on the
+      // weakest GPU in the room). The desktop cap (1.75) is untouched.
+      dpr={lightweight ? [1, 1.5] : [1, 1.75]}
+      // Was off on mobile entirely — between that and the dpr cap above, model
+      // edges (the truck's silhouette, panel lines, wheel rims) read as
+      // jagged/"pixelated" on a real phone screen. Modern phone GPUs handle
+      // MSAA cheaply; the removed HDRI/shadows/transmission cost elsewhere
+      // in this render path leaves room for it.
+      gl={{ antialias: true }}
       onCreated={({ gl }) => {
         // Filmic tone mapping — the same curve real product-photography
         // renderers use — so the HDRI's highlights roll off naturally
