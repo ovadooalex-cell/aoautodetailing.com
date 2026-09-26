@@ -63,6 +63,18 @@ export const MODEL_URL = '/models/tacoma/tacoma.glb';
  * still the same on mobile as desktop.
  */
 export const MODEL_URL_MOBILE = '/models/tacoma/tacoma-mobile.glb';
+/**
+ * Seats, dashboard/console, and steering wheel — cut from the original
+ * OBJ→glb conversion (see reference-vehicle-asset-pipeline memory) since
+ * nothing needed it at the time and one of its materials still had an
+ * unremoved badge baked in. Re-extracted from the same source OBJ (still on
+ * disk in Downloads) once real window transparency made an empty cabin
+ * visible through the glass — same filter technique as the exterior badges,
+ * dropping the `int_badges`/`trd_prts` material faces this time instead of a
+ * boxed region. Only 16.8k triangles total (vs. the body's 200k+), so one
+ * file covers both desktop and mobile — no LOD pass needed.
+ */
+export const MODEL_URL_INTERIOR = '/models/tacoma/tacoma-interior.glb';
 
 /**
  * Every camera waypoint's `distanceFrac` (see OrbitPoseParams/STAGE_POSE

@@ -4,7 +4,7 @@ import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import * as THREE from 'three';
-import { MODEL_URL, MODEL_URL_MOBILE, HDRI_URL, TEXTURES_URL, BRAND_LOGO_URL } from '../config/carConfig';
+import { MODEL_URL, MODEL_URL_MOBILE, MODEL_URL_INTERIOR, HDRI_URL, TEXTURES_URL, BRAND_LOGO_URL } from '../config/carConfig';
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
 import { addSideMirrors, addLogoDecal } from '../lib/vehicleAddons';
@@ -102,6 +102,10 @@ function Model({
   lightweight: boolean;
 }) {
   const { scene } = useGLTF(lightweight ? MODEL_URL_MOBILE : MODEL_URL);
+  // Separate small glb (~16.8k triangles total) rather than folded into the
+  // body model — see MODEL_URL_INTERIOR's doc comment. One file covers both
+  // desktop and mobile, so this load doesn't depend on `lightweight`.
+  const { scene: interiorScene } = useGLTF(MODEL_URL_INTERIOR);
   const { camera, gl } = useThree();
   // Guards against StrictMode's double-effect-invoke re-processing the SAME
   // scene twice — but keyed by scene identity, not a plain boolean, so it
@@ -142,7 +146,9 @@ function Model({
       cheapTransmission: lightweight,
     });
 
-    scene.traverse((obj) => {
+    // Shared between the body scene and the interior scene below — same
+    // by-name material resolution and badge sweep either way.
+    const processMesh = (obj: THREE.Object3D) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
       // Shadow casting/receiving is moot when lightweight also turns off the
@@ -162,15 +168,22 @@ function Model({
       mesh.material = Array.isArray(mesh.material)
         ? mesh.material.map((m) => resolveMaterial(m.name))
         : resolveMaterial(mesh.material.name);
-    });
+    };
+
+    scene.traverse(processMesh);
 
     const box = new THREE.Box3().setFromObject(scene);
 
     // Added after the box above is computed so neither skews the
     // camera-framing math, which measures the truck's own body — see
-    // buildPose in ScrollExperience.tsx. Both are cheap: a handful of
-    // primitive meshes, and (once it loads) one small decal texture.
+    // buildPose in ScrollExperience.tsx. All three are cheap: a handful of
+    // primitive meshes, ~16.8k triangles of interior, and (once it loads)
+    // one small decal texture.
     addSideMirrors(scene);
+    if (interiorScene.parent !== scene) {
+      interiorScene.traverse(processMesh);
+      scene.add(interiorScene);
+    }
     // Loaded directly rather than via useLoader/Suspense — same reasoning as
     // vehicleMaterial.ts's DDS textures (direct `.load()` calls, not
     // useLoader): useLoader's suspend-react cache hung indefinitely for this
@@ -178,10 +191,10 @@ function Model({
     // or the file itself — a raw `new THREE.TextureLoader().load(...)` call
     // resolved fine every time). Fire-and-forget: the decal pops in a moment
     // after the truck itself rather than blocking the whole scene on it.
-    new THREE.TextureLoader().load(BRAND_LOGO_URL, (texture) => addLogoDecal(scene, texture));
+    new THREE.TextureLoader().load(BRAND_LOGO_URL, (texture) => addLogoDecal(scene, texture, gl));
 
     onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift, lightweight });
-  }, [scene, camera, gl, onReady, viewShift, lightweight]);
+  }, [scene, interiorScene, camera, gl, onReady, viewShift, lightweight]);
 
   return <primitive object={scene} />;
 }
@@ -418,3 +431,4 @@ if (typeof window !== 'undefined' && window.matchMedia(LIGHTWEIGHT_SCENE_QUERY).
 } else {
   useGLTF.preload(MODEL_URL);
 }
+useGLTF.preload(MODEL_URL_INTERIOR);

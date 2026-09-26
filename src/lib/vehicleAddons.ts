@@ -64,7 +64,7 @@ export function addSideMirrors(scene: THREE.Object3D): void {
  * the truck (see the azimuth notes in carConfig.ts), so a second decal on the
  * far side would never be seen — not worth the extra draw call.
  */
-export function addLogoDecal(scene: THREE.Object3D, texture: THREE.Texture): void {
+export function addLogoDecal(scene: THREE.Object3D, texture: THREE.Texture, gl: THREE.WebGLRenderer): void {
   const door = scene.getObjectByName(DOOR_MESH_NAMES.positiveX);
   if (!door) return;
   const box = new THREE.Box3().setFromObject(door);
@@ -83,6 +83,16 @@ export function addLogoDecal(scene: THREE.Object3D, texture: THREE.Texture): voi
   texture.wrapS = THREE.RepeatWrapping;
   texture.repeat.x = -1;
   texture.offset.x = 1;
+  // Both missing before, and both made the logo read soft/washed-out:
+  // colorSpace defaults to no color-space conversion, which is wrong for a
+  // regular color image (same fix already applied to every other diffuse
+  // texture in vehicleMaterial.ts); anisotropy defaults to 1, which blurs
+  // heavily at the oblique angle every camera stage actually views this
+  // door from (anisotropic filtering is specifically what sharpens texture
+  // sampling at a shallow viewing angle — a flat "sharper" filter alone
+  // doesn't fix that).
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = gl.capabilities.getMaxAnisotropy();
   texture.needsUpdate = true;
 
   const size = new THREE.Vector3(0.4, 0.4, 0.3);

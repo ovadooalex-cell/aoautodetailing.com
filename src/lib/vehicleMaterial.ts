@@ -296,11 +296,13 @@ export function createVehicleMaterialResolver({
     return shared(`${categoryKey}:${params.color}`, () => new THREE.MeshPhysicalMaterial(params));
   };
 
-  // Same physical parameters as the Porsche build, tuned against the same
-  // reference photos — kept identical on purpose so a paint-color change in
-  // carConfig.ts still looks the same way it always has. Paint has no
-  // texture in the source (the game applied color separately), so this
-  // never goes through `build()`.
+  // Base physical parameters were the Porsche build's — tuned for glossy
+  // fresh clearcoat paint. Once this became a camo *wrap* rather than paint,
+  // that combination (clearcoat 1, clearcoatRoughness 0.02 — near-mirror)
+  // read wrong: real vinyl wrap is satin, not wet-look glossy. Dropped
+  // clearcoat and roughened it up so reflections stay soft/diffuse-ish
+  // instead of mirror-sharp, which is most of what actually reads as
+  // "wrap" vs. "paint" at a glance.
   // Camo (see camoTexture.ts) replaces the old flat `paintColor` — kept as a
   // parameter on MaterialResolverOptions rather than removed, in case a solid
   // color is ever wanted again. `color: '#ffffff'` lets the texture's own
@@ -311,11 +313,11 @@ export function createVehicleMaterialResolver({
     shared('__paint', () => new THREE.MeshPhysicalMaterial({
       color: '#ffffff',
       map: getCamoTexture(),
-      metalness: 0.45,
-      roughness: 0.12,
-      clearcoat: 1,
-      clearcoatRoughness: 0.02,
-      envMapIntensity: 1.5,
+      metalness: 0.2,
+      roughness: 0.35,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.25,
+      envMapIntensity: 1.1,
     }));
   // Real `transmission` params vs. the `cheapTransmission` (mobile) fallback
   // for the same visual role — see the option's doc comment on why this
@@ -333,13 +335,18 @@ export function createVehicleMaterialResolver({
         ? new THREE.MeshPhysicalMaterial({ ...rest, transparent: true, opacity: 1 - transmission * 0.75 })
         : new THREE.MeshPhysicalMaterial({ ...rest, transmission, thickness, ior }),
     );
+  // Bumped up (was 0.8/#141b21/0.15) once there was finally an interior
+  // worth seeing through the glass to — higher transmission, a lighter tint,
+  // and less thickness (thickness governs how much the IOR bends/absorbs
+  // light travelling through it) all make more of the cabin actually read
+  // through the window instead of just a dark reflective sheen.
   const glass = () =>
     glassLike('__glass', {
-      color: '#141b21',
+      color: '#2b3541',
       metalness: 0,
       roughness: 0.03,
-      transmission: 0.8,
-      thickness: 0.15,
+      transmission: 0.94,
+      thickness: 0.06,
       ior: 1.5,
       envMapIntensity: 1.3,
     });
