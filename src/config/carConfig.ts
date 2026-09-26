@@ -108,19 +108,25 @@ export const TEXTURES_URL = '/models/tacoma/textures/';
 export const BRAND_LOGO_URL = '/branding/ao-logo.webp';
 
 /**
- * The truck's solid-paint history, kept only as a revert reference — the
- * `son_xe` material is camo now (see lib/camoTexture.ts + vehicleMaterial.ts's
- * `paint()`), not a flat color, so this constant is no longer read anywhere.
- * Not something the asset itself defines: the source .obj/.mtl and even the
- * original .blend leave this material at an untouched default (checked
- * directly, down to the binary level — see project memory), so there's no
- * "real" color to inherit from the file regardless.
+ * The truck's paint color, applied at runtime in CarSceneCanvas.tsx (via
+ * lib/vehicleMaterial.ts) to the `son_xe` material — real single source of
+ * truth, not baked into the glb. Not something the asset itself defines: the
+ * source .obj/.mtl and even the original .blend leave this material at an
+ * untouched default (checked directly, down to the binary level — see
+ * project memory), so there's no "real" color to inherit from the file.
  *
- * Most recently a clean off-white ("Super White"-style Toyota showroom
- * color, matched by eye against reference renders of a real white Tacoma TRD
- * Pro the user supplied): '#f6f5f0'. Before that, a vivid mid blue:
- * '#2f97d4'. Before that, AO's brand brass/tan (index.css --color-accent,
- * '#c9973f').
+ * A camo wrap (a canvas-generated texture) briefly replaced this entirely —
+ * rolled back at the user's request ("not liking how the camo looks"), back
+ * to solid paint.
+ *
+ * A clean off-white ("Super White"-style Toyota showroom color), matched by
+ * eye against reference renders of a real white Tacoma TRD Pro the user
+ * supplied — not pure #ffffff, which reads flat/plastic under the HDRI; a
+ * touch of warmth keeps the clearcoat looking like real paint.
+ *
+ * Previously a vivid mid blue (kept as a comment in case of a future
+ * revert): '#2f97d4'. Before that, AO's brand brass/tan (index.css
+ * --color-accent, '#c9973f').
  */
 export const PAINT_COLOR = '#f6f5f0';
 

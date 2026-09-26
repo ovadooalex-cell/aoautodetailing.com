@@ -6,15 +6,16 @@
   color-scheme: dark;
 
   /* ---- Palette: near-black olive base + brass/gold accent ---- */
-  /* Shifted more explicitly "army/camo" (user request) once the hero
-     vehicle itself became a camo wrap: borders/dividers site-wide now read
-     olive-drab instead of brass-tinted, and --color-olive moved from "used
-     sparingly" to a real secondary accent, matched to the truck's own camo
-     mid-tone (camoTexture.ts's '#3f4a2b') so the site and the 3D model read
-     as one palette. Gold/brass is kept for the primary accent/CTAs on
-     purpose rather than replaced outright — olive-drab-with-gold-trim is
-     itself a real military color pairing (dog tags, rank insignia, medal
-     ribbons), so keeping it doesn't fight the theme, it reinforces it. */
+  /* Shifted more explicitly "army/camo" (user request) for the site's own UI:
+     borders/dividers site-wide now read olive-drab instead of brass-tinted,
+     and --color-olive moved from "used sparingly" to a real secondary
+     accent. (The truck's paint itself went back to solid white after a
+     separate camo-wrap texture experiment there didn't land — this site-wide
+     palette shift is independent of that and wasn't reverted.) Gold/brass is
+     kept for the primary accent/CTAs on purpose rather than replaced
+     outright — olive-drab-with-gold-trim is itself a real military color
+     pairing (dog tags, rank insignia, medal ribbons), so keeping it doesn't
+     fight the theme, it reinforces it. */
   --color-bg: #100f0b;
   --color-bg-raised: #1a1811;
   --color-bg-panel: rgba(24, 22, 16, 0.76);
@@ -25,7 +26,7 @@
   --color-text-faint: #656654;
   --color-accent: #c9973f; /* brass/gold — AO's signature, kept as CTA/medal-trim accent */
   --color-accent-soft: rgba(201, 151, 63, 0.32);
-  --color-olive: #3f4a2b; /* camo mid-tone — see camoTexture.ts; a real secondary accent now, not just border texture */
+  --color-olive: #3f4a2b; /* olive-drab — a real secondary accent now, not just border texture */
   --color-olive-soft: rgba(63, 74, 43, 0.34);
 
   /* ---- The 3D car's own backdrop: a neutral studio white/grey, distinct
@@ -176,10 +177,11 @@ p {
   -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
-/* Reusable, tasteful camo-texture accent — layered soft blotches in the same
-   palette as the truck's own camo (camoTexture.ts), tiled and dialed low
-   enough in contrast to sit *behind* real content rather than compete with
-   it. Meant for a section's own background (e.g. .site-footer), not text. */
+/* Reusable, tasteful camo-texture accent — layered soft blotches in an
+   olive-drab palette, tiled and dialed low enough in contrast to sit
+   *behind* real content rather than compete with it. Meant for a section's
+   own background (e.g. .site-footer), not text. Independent of the truck's
+   own paint, which is solid white again. */
 .camo-texture-bg {
   background-image:
     radial-gradient(ellipse 220px 150px at 8% 15%, rgba(63, 74, 43, 0.4), transparent 65%),

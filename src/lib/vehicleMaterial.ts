@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { DDSLoader } from 'three/examples/jsm/loaders/DDSLoader.js';
-import { getCamoTexture } from './camoTexture';
 
 /**
  * Turns the Tacoma glb's ~120 original .mtl material names into real
@@ -200,6 +199,7 @@ const CALIPER_MATERIAL_NAMES = new Set([
 ]);
 
 export interface MaterialResolverOptions {
+  paintColor: string;
   /** Where the copied .dds files live, e.g. '/models/tacoma/textures/'. */
   texturesBaseUrl: string;
   /** From `gl.extensions.has('WEBGL_compressed_texture_s3tc')` — false skips
@@ -239,6 +239,7 @@ interface FlatParams {
  * shares one textured material too.
  */
 export function createVehicleMaterialResolver({
+  paintColor,
   texturesBaseUrl,
   supportsCompressedTextures,
   cheapTransmission,
@@ -296,32 +297,23 @@ export function createVehicleMaterialResolver({
     return shared(`${categoryKey}:${params.color}`, () => new THREE.MeshPhysicalMaterial(params));
   };
 
-  // Base physical parameters were the Porsche build's — tuned for glossy
-  // fresh clearcoat paint. Once this became a camo *wrap* rather than paint,
-  // that combination (clearcoat 1, clearcoatRoughness 0.02 — near-mirror)
-  // read wrong: real vinyl wrap is satin, not wet-look glossy. Roughened
-  // further and dropped clearcoat/envMapIntensity again in a second pass —
-  // NOT because of a reflection bug (a "white rectangle on the door" report
-  // that prompted this looked exactly like a washed-out clearcoat hotspot,
-  // but toggling these same values to 0 live didn't remove it; it turned out
-  // to be the side-mirror approximation in vehicleAddons.ts, since removed —
-  // see that file's git history). Kept this pass's more subdued satin look
-  // on its own visual merits rather than reverting it.
-  // Camo (see camoTexture.ts) replaces the old flat `paintColor` — kept as a
-  // parameter on MaterialResolverOptions rather than removed, in case a solid
-  // color is ever wanted again. `color: '#ffffff'` lets the texture's own
-  // colors show unmodified (a tinted base would muddy them); every panel
-  // sharing this one texture/material instance is why a camo repaint doesn't
-  // cost anything extra per additional body panel.
+  // Camo (a canvas-generated wrap texture) was tried and rolled back at the
+  // user's request ("not liking how the camo looks") — back to solid paint.
+  // These physical parameters (glossy fresh clearcoat: near-mirror clearcoat,
+  // fairly low base roughness) are the Porsche build's original values,
+  // tuned against real reference photos of a white Tacoma TRD Pro. Safe to
+  // run at full gloss now: the "white rectangle" artifact that briefly
+  // looked like a clearcoat hotspot turned out to be an unrelated
+  // primitive-mirror mesh (since removed, see vehicleAddons.ts's git
+  // history), not a real reflection problem with this material.
   const paint = () =>
     shared('__paint', () => new THREE.MeshPhysicalMaterial({
-      color: '#ffffff',
-      map: getCamoTexture(),
-      metalness: 0.2,
-      roughness: 0.4,
-      clearcoat: 0.15,
-      clearcoatRoughness: 0.45,
-      envMapIntensity: 0.5,
+      color: paintColor,
+      metalness: 0.45,
+      roughness: 0.12,
+      clearcoat: 1,
+      clearcoatRoughness: 0.02,
+      envMapIntensity: 1.5,
     }));
   // Real `transmission` params vs. the `cheapTransmission` (mobile) fallback
   // for the same visual role — see the option's doc comment on why this

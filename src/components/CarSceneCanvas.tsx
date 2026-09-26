@@ -4,7 +4,7 @@ import { ContactShadows, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import * as THREE from 'three';
-import { MODEL_URL, MODEL_URL_MOBILE, MODEL_URL_INTERIOR, HDRI_URL, TEXTURES_URL, BRAND_LOGO_URL } from '../config/carConfig';
+import { MODEL_URL, MODEL_URL_MOBILE, MODEL_URL_INTERIOR, HDRI_URL, PAINT_COLOR, TEXTURES_URL, BRAND_LOGO_URL } from '../config/carConfig';
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
 import { addLogoDecal } from '../lib/vehicleAddons';
@@ -141,6 +141,7 @@ function Model({
     // Flat colors are the same fallback already used for hardware that
     // lacks compressed-texture support outright.
     const resolveMaterial = createVehicleMaterialResolver({
+      paintColor: PAINT_COLOR,
       texturesBaseUrl: TEXTURES_URL,
       supportsCompressedTextures: !lightweight && gl.extensions.has('WEBGL_compressed_texture_s3tc'),
       cheapTransmission: lightweight,

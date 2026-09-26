@@ -14,12 +14,11 @@ const DECAL_TARGET_MESH_NAME = 'door_pside_f024';
 
 /**
  * Stamps the AO Auto Detailing logo onto the passenger-side front door as a
- * projected decal (three's DecalGeometry), not baked into the camo texture —
- * keeps the camo pattern independent of branding placement, and a decal
- * projects cleanly onto a curved body panel regardless of that panel's own
- * UV layout (unlike painting it into camoTexture.ts, which would need the
- * logo pre-warped to match each panel's individual unwrap). Only the
- * passenger side gets one: every camera stage's azimuth sits on that side of
+ * projected decal (three's DecalGeometry) rather than a texture baked onto
+ * the panel — a decal projects cleanly onto a curved body panel regardless
+ * of that panel's own UV layout, independent of whatever the paint itself is
+ * doing (solid color, previously a camo texture, or anything future). Only
+ * the passenger side gets one: every camera stage's azimuth sits on that side of
  * the truck (see the azimuth notes in carConfig.ts), so a second decal on the
  * far side would never be seen — not worth the extra draw call.
  */
