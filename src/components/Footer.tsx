@@ -15,7 +15,7 @@ import './Footer.css';
 
 export default function Footer({ preselect }: { preselect?: ServicePreselect }) {
   return (
-    <footer className="site-footer" id="book">
+    <footer className="site-footer camo-texture-bg" id="book">
       <div className="site-footer__cta">
         <span className="eyebrow">Ready when you are</span>
         <h2 className="site-footer__title">BOOK YOUR DETAIL</h2>

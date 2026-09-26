@@ -5,18 +5,28 @@
 :root {
   color-scheme: dark;
 
-  /* ---- Palette: near-black olive base + brass/tan accent ---- */
+  /* ---- Palette: near-black olive base + brass/gold accent ---- */
+  /* Shifted more explicitly "army/camo" (user request) once the hero
+     vehicle itself became a camo wrap: borders/dividers site-wide now read
+     olive-drab instead of brass-tinted, and --color-olive moved from "used
+     sparingly" to a real secondary accent, matched to the truck's own camo
+     mid-tone (camoTexture.ts's '#3f4a2b') so the site and the 3D model read
+     as one palette. Gold/brass is kept for the primary accent/CTAs on
+     purpose rather than replaced outright — olive-drab-with-gold-trim is
+     itself a real military color pairing (dog tags, rank insignia, medal
+     ribbons), so keeping it doesn't fight the theme, it reinforces it. */
   --color-bg: #100f0b;
   --color-bg-raised: #1a1811;
   --color-bg-panel: rgba(24, 22, 16, 0.76);
-  --color-border: rgba(201, 168, 106, 0.14);
-  --color-border-strong: rgba(201, 168, 106, 0.28);
+  --color-border: rgba(122, 132, 92, 0.16);
+  --color-border-strong: rgba(122, 132, 92, 0.32);
   --color-text: #f3efe4;
-  --color-text-muted: #a89f8c;
-  --color-text-faint: #6b6455;
-  --color-accent: #c9973f; /* brass/tan — AO's signature gold */
+  --color-text-muted: #a4a48c;
+  --color-text-faint: #656654;
+  --color-accent: #c9973f; /* brass/gold — AO's signature, kept as CTA/medal-trim accent */
   --color-accent-soft: rgba(201, 151, 63, 0.32);
-  --color-olive: #3f3c2a; /* muted olive drab — used sparingly for texture/borders */
+  --color-olive: #3f4a2b; /* camo mid-tone — see camoTexture.ts; a real secondary accent now, not just border texture */
+  --color-olive-soft: rgba(63, 74, 43, 0.34);
 
   /* ---- The 3D car's own backdrop: a neutral studio white/grey, distinct
      from the rest of the dark UI — like the car is lit on a studio floor
@@ -25,9 +35,12 @@
      (was a vivid blue, which had plenty of contrast against any light
      backdrop on its own), the hero shot's framing puts the car almost
      exactly in this gradient's brightest, most central point, and the two
-     were close enough in tone to make the truck nearly disappear there. */
-  --color-studio-bg: #d9d6cc;
-  --color-studio-bg-edge: #cfccc2;
+     were close enough in tone to make the truck nearly disappear there.
+     Warmed slightly toward khaki (from #d9d6cc/#cfccc2) for the camo
+     re-theme — a field/desert studio floor rather than a neutral gray one,
+     still light enough to read as "studio," not "outdoors." */
+  --color-studio-bg: #ddd6c1;
+  --color-studio-bg-edge: #cec5a8;
   --color-studio-scrim: rgba(16, 15, 11, 0.55);
 
   /* ---- Type scale ---- */
@@ -161,6 +174,21 @@ p {
   border: 1px solid var(--color-border);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Reusable, tasteful camo-texture accent — layered soft blotches in the same
+   palette as the truck's own camo (camoTexture.ts), tiled and dialed low
+   enough in contrast to sit *behind* real content rather than compete with
+   it. Meant for a section's own background (e.g. .site-footer), not text. */
+.camo-texture-bg {
+  background-image:
+    radial-gradient(ellipse 220px 150px at 8% 15%, rgba(63, 74, 43, 0.4), transparent 65%),
+    radial-gradient(ellipse 260px 190px at 68% 55%, rgba(23, 26, 18, 0.5), transparent 65%),
+    radial-gradient(ellipse 190px 130px at 35% 88%, rgba(107, 97, 68, 0.35), transparent 65%),
+    radial-gradient(ellipse 240px 170px at 92% 10%, rgba(63, 74, 43, 0.35), transparent 65%),
+    radial-gradient(ellipse 170px 120px at 90% 80%, rgba(23, 26, 18, 0.4), transparent 65%);
+  background-repeat: repeat;
+  background-size: 680px 680px;
 }
 
 .visually-hidden {
