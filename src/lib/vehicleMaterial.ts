@@ -299,10 +299,14 @@ export function createVehicleMaterialResolver({
   // Base physical parameters were the Porsche build's — tuned for glossy
   // fresh clearcoat paint. Once this became a camo *wrap* rather than paint,
   // that combination (clearcoat 1, clearcoatRoughness 0.02 — near-mirror)
-  // read wrong: real vinyl wrap is satin, not wet-look glossy. Dropped
-  // clearcoat and roughened it up so reflections stay soft/diffuse-ish
-  // instead of mirror-sharp, which is most of what actually reads as
-  // "wrap" vs. "paint" at a glance.
+  // read wrong: real vinyl wrap is satin, not wet-look glossy. Roughened
+  // further and dropped clearcoat/envMapIntensity again in a second pass —
+  // NOT because of a reflection bug (a "white rectangle on the door" report
+  // that prompted this looked exactly like a washed-out clearcoat hotspot,
+  // but toggling these same values to 0 live didn't remove it; it turned out
+  // to be the side-mirror approximation in vehicleAddons.ts, since removed —
+  // see that file's git history). Kept this pass's more subdued satin look
+  // on its own visual merits rather than reverting it.
   // Camo (see camoTexture.ts) replaces the old flat `paintColor` — kept as a
   // parameter on MaterialResolverOptions rather than removed, in case a solid
   // color is ever wanted again. `color: '#ffffff'` lets the texture's own
@@ -314,10 +318,10 @@ export function createVehicleMaterialResolver({
       color: '#ffffff',
       map: getCamoTexture(),
       metalness: 0.2,
-      roughness: 0.35,
-      clearcoat: 0.4,
-      clearcoatRoughness: 0.25,
-      envMapIntensity: 1.1,
+      roughness: 0.4,
+      clearcoat: 0.15,
+      clearcoatRoughness: 0.45,
+      envMapIntensity: 0.5,
     }));
   // Real `transmission` params vs. the `cheapTransmission` (mobile) fallback
   // for the same visual role — see the option's doc comment on why this

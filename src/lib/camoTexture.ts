@@ -31,6 +31,26 @@ function seededRandom(seed: number) {
 }
 
 /**
+ * Small random per-blob RGB nudge — without this every blob of "the same"
+ * palette color is pixel-identical, which is what made the first version
+ * read as flat computer-generated shapes rather than a real dye-lot-varied
+ * printed pattern (real camo never repeats an exact color across the whole
+ * print).
+ */
+function jitter(hex: string, rand: () => number, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const channel = (shift: number) => {
+    const v = (n >> shift) & 0xff;
+    const delta = Math.round((rand() * 2 - 1) * amount * 255);
+    return Math.max(0, Math.min(255, v + delta));
+  };
+  const r = channel(16);
+  const g = channel(8);
+  const b = channel(0);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
  * A soft-edged organic blotch: `ctx.filter = 'blur(...)'` feathers the edge
  * (real camo, even printed/laminated onto vinyl, doesn't have knife-sharp
  * color boundaries), and quadratic curves through the midpoints between
@@ -75,25 +95,25 @@ export function getCamoTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d')!;
   const rand = seededRandom(42);
 
-  ctx.fillStyle = CAMO_COLORS[0];
+  ctx.fillStyle = jitter(CAMO_COLORS[0], rand, 0.04);
   ctx.fillRect(0, 0, CAMO_SIZE, CAMO_SIZE);
 
   // Macro pass: the big blotches that read from a distance.
   for (let i = 0; i < 22; i++) {
-    const color = CAMO_COLORS[1 + Math.floor(rand() * (CAMO_COLORS.length - 1))];
+    const color = jitter(CAMO_COLORS[1 + Math.floor(rand() * (CAMO_COLORS.length - 1))], rand, 0.06);
     drawBlob(ctx, rand() * CAMO_SIZE, rand() * CAMO_SIZE, 90 + rand() * 150, color, rand, 6);
   }
   // Mid pass: smaller blotches breaking up the macro shapes' interiors and
   // seams, the way a real multi-color pattern layers instead of leaving
   // each big blotch a single flat field.
   for (let i = 0; i < 55; i++) {
-    const color = CAMO_COLORS[Math.floor(rand() * CAMO_COLORS.length)];
+    const color = jitter(CAMO_COLORS[Math.floor(rand() * CAMO_COLORS.length)], rand, 0.06);
     drawBlob(ctx, rand() * CAMO_SIZE, rand() * CAMO_SIZE, 25 + rand() * 55, color, rand, 3);
   }
   // Fine grain: hundreds of tiny low-alpha specks so no patch of color reads
   // as a perfectly flat computer-generated fill up close.
   for (let i = 0; i < 4000; i++) {
-    const color = CAMO_COLORS[Math.floor(rand() * CAMO_COLORS.length)];
+    const color = jitter(CAMO_COLORS[Math.floor(rand() * CAMO_COLORS.length)], rand, 0.1);
     ctx.globalAlpha = 0.05 + rand() * 0.12;
     ctx.fillStyle = color;
     const s = 1 + rand() * 2.5;

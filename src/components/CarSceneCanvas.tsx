@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { MODEL_URL, MODEL_URL_MOBILE, MODEL_URL_INTERIOR, HDRI_URL, TEXTURES_URL, BRAND_LOGO_URL } from '../config/carConfig';
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
-import { addSideMirrors, addLogoDecal } from '../lib/vehicleAddons';
+import { addLogoDecal } from '../lib/vehicleAddons';
 import { useLightweightScene, LIGHTWEIGHT_SCENE_QUERY } from '../hooks/useLightweightScene';
 import type { CarSceneHandle } from './CarScene';
 
@@ -176,10 +176,8 @@ function Model({
 
     // Added after the box above is computed so neither skews the
     // camera-framing math, which measures the truck's own body — see
-    // buildPose in ScrollExperience.tsx. All three are cheap: a handful of
-    // primitive meshes, ~16.8k triangles of interior, and (once it loads)
-    // one small decal texture.
-    addSideMirrors(scene);
+    // buildPose in ScrollExperience.tsx. Both are cheap: ~16.8k triangles of
+    // interior, and (once it loads) one small decal texture.
     if (interiorScene.parent !== scene) {
       interiorScene.traverse(processMesh);
       scene.add(interiorScene);
