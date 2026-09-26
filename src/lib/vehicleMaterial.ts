@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DDSLoader } from 'three/examples/jsm/loaders/DDSLoader.js';
+import { getCamoTexture } from './camoTexture';
 
 /**
  * Turns the Tacoma glb's ~120 original .mtl material names into real
@@ -199,7 +200,6 @@ const CALIPER_MATERIAL_NAMES = new Set([
 ]);
 
 export interface MaterialResolverOptions {
-  paintColor: string;
   /** Where the copied .dds files live, e.g. '/models/tacoma/textures/'. */
   texturesBaseUrl: string;
   /** From `gl.extensions.has('WEBGL_compressed_texture_s3tc')` — false skips
@@ -239,7 +239,6 @@ interface FlatParams {
  * shares one textured material too.
  */
 export function createVehicleMaterialResolver({
-  paintColor,
   texturesBaseUrl,
   supportsCompressedTextures,
   cheapTransmission,
@@ -302,9 +301,16 @@ export function createVehicleMaterialResolver({
   // carConfig.ts still looks the same way it always has. Paint has no
   // texture in the source (the game applied color separately), so this
   // never goes through `build()`.
+  // Camo (see camoTexture.ts) replaces the old flat `paintColor` — kept as a
+  // parameter on MaterialResolverOptions rather than removed, in case a solid
+  // color is ever wanted again. `color: '#ffffff'` lets the texture's own
+  // colors show unmodified (a tinted base would muddy them); every panel
+  // sharing this one texture/material instance is why a camo repaint doesn't
+  // cost anything extra per additional body panel.
   const paint = () =>
     shared('__paint', () => new THREE.MeshPhysicalMaterial({
-      color: paintColor,
+      color: '#ffffff',
+      map: getCamoTexture(),
       metalness: 0.45,
       roughness: 0.12,
       clearcoat: 1,
