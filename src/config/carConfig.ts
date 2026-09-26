@@ -18,10 +18,11 @@
  * per the standing "no emblems/anything copyrightable" rule, all of that —
  * the light bar, its mounts and wiring, the badge decals, the front grille
  * lettering, and the license-plate blanks — was cut at conversion time,
- * matched by material name and object name, not left in and hidden. The
- * interior was cut too (not used by any camera shot in this site, and it's
- * the one part of the source that still had an unremoved badge baked into
- * its geometry). None of that is recoverable from the shipped glb.
+ * matched by material name and object name, not left in and hidden. None of
+ * that is recoverable from the shipped glb (it's not in the source OBJ's
+ * kept objects at all — see MODEL_URL_INTERIOR below for the one exception:
+ * the interior *was* cut here too at first, but later re-extracted from the
+ * still-available source file once it was actually needed).
  *
  * PART NAMES
  * -----------

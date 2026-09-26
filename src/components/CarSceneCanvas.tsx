@@ -129,10 +129,13 @@ function Model({
     // vehicleMaterial.ts for the texture story (real .dds files, GPU-side
     // compressed, gated behind a hardware capability check).
     //
-    // The light-bar/siren package this file originally came with, its badge
-    // decals, and its interior (unused by any camera shot in this site) were
-    // already cut out of the source geometry during that same conversion —
-    // see the no-emblems note in carConfig.ts.
+    // The light-bar/siren package this file originally came with and its
+    // badge decals were cut out of the source geometry during that same
+    // conversion — see the no-emblems note in carConfig.ts. The interior was
+    // cut then too (unused by any camera shot at the time) but later
+    // re-extracted from the same source file once real window transparency
+    // made an empty cabin visible — see `interiorScene` below and
+    // MODEL_URL_INTERIOR's doc comment in carConfig.ts.
     //
     // `lightweight` (phones/tablets — see useLightweightScene) skips the
     // real textures even on hardware that could technically display them:

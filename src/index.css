@@ -7,15 +7,14 @@
 
   /* ---- Palette: near-black olive base + brass/gold accent ---- */
   /* Shifted more explicitly "army/camo" (user request) for the site's own UI:
-     borders/dividers site-wide now read olive-drab instead of brass-tinted,
-     and --color-olive moved from "used sparingly" to a real secondary
-     accent. (The truck's paint itself went back to solid white after a
-     separate camo-wrap texture experiment there didn't land — this site-wide
-     palette shift is independent of that and wasn't reverted.) Gold/brass is
-     kept for the primary accent/CTAs on purpose rather than replaced
-     outright — olive-drab-with-gold-trim is itself a real military color
-     pairing (dog tags, rank insignia, medal ribbons), so keeping it doesn't
-     fight the theme, it reinforces it. */
+     borders/dividers site-wide now read olive-drab instead of brass-tinted
+     (--color-border/--color-border-strong below). (The truck's paint itself
+     went back to solid white after a separate camo-wrap texture experiment
+     there didn't land — this site-wide palette shift is independent of that
+     and wasn't reverted.) Gold/brass is kept for the primary accent/CTAs on
+     purpose rather than replaced outright — olive-drab-with-gold-trim is
+     itself a real military color pairing (dog tags, rank insignia, medal
+     ribbons), so keeping it doesn't fight the theme, it reinforces it. */
   --color-bg: #100f0b;
   --color-bg-raised: #1a1811;
   --color-bg-panel: rgba(24, 22, 16, 0.76);
@@ -26,8 +25,14 @@
   --color-text-faint: #656654;
   --color-accent: #c9973f; /* brass/gold — AO's signature, kept as CTA/medal-trim accent */
   --color-accent-soft: rgba(201, 151, 63, 0.32);
-  --color-olive: #3f4a2b; /* olive-drab — a real secondary accent now, not just border texture */
-  --color-olive-soft: rgba(63, 74, 43, 0.34);
+  /* Defined but not currently applied to any component — every existing
+     accent/highlight spot (buttons, active-stage indicators, pricing badges)
+     already uses --color-accent on purpose (see above), and olive read too
+     low-contrast against this near-black background to use as text color.
+     Kept as a reserved token for a future olive-specific use rather than
+     removed outright, same as it's been since before this file's army-theme
+     pass — don't add a usage claim here unless something actually reads it. */
+  --color-olive: #3f4a2b;
 
   /* ---- The 3D car's own backdrop: a neutral studio white/grey, distinct
      from the rest of the dark UI — like the car is lit on a studio floor
