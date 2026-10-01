@@ -100,7 +100,6 @@ export const ADD_ONS: AddOn[] = [
   { name: 'Pet Hair Removal', priceLabel: 'starting at $30' },
   { name: 'Carpet / Seat Extraction', priceLabel: 'starting at $40' },
   { name: 'Spray Wax / Sealant', priceLabel: '$25' },
-  { name: 'Wheel Deep Clean', priceLabel: '$25' },
 ];
 
 export const PRICING_DISCLAIMER =

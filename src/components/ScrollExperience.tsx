@@ -46,9 +46,13 @@ const MIN_HEIGHT_FRACTION = 0.03;
 interface ScrollExperienceProps {
   onBook?: () => void;
   onViewServices?: () => void;
+  /** Jumps the scroll position to a stage's anchor id — same mechanism the
+   * navbar links already use (App.tsx's scrollToId), wired through to the
+   * clickable stage rail in InfoPanel. */
+  onNavigateStage?: (id: string) => void;
 }
 
-export default function ScrollExperience({ onBook, onViewServices }: ScrollExperienceProps) {
+export default function ScrollExperience({ onBook, onViewServices, onNavigateStage }: ScrollExperienceProps) {
   const experienceRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -286,7 +290,7 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
   const noPanel = isNoPanelStage(activeStageId);
 
   if (reducedMotion) {
-    return <StaticExperience onBook={onBook} onViewServices={onViewServices} />;
+    return <StaticExperience onBook={onBook} onViewServices={onViewServices} onNavigateStage={onNavigateStage} />;
   }
 
   return (
@@ -312,6 +316,7 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
           activeSubHighlight={activeSubHighlight}
           visible={!noPanel}
           onViewPricing={onViewServices}
+          onNavigateStage={onNavigateStage}
         />
 
         <FinalReveal
@@ -328,9 +333,11 @@ export default function ScrollExperience({ onBook, onViewServices }: ScrollExper
 function StaticExperience({
   onBook,
   onViewServices,
+  onNavigateStage,
 }: {
   onBook?: () => void;
   onViewServices?: () => void;
+  onNavigateStage?: (id: string) => void;
 }) {
   return (
     <div className="experience experience--static">
@@ -348,6 +355,7 @@ function StaticExperience({
             activeSubHighlight={-1}
             visible
             onViewPricing={onViewServices}
+            onNavigateStage={onNavigateStage}
           />
         </section>
       ))}

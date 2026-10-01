@@ -47,7 +47,15 @@
   transform: scaleX(1);
 }
 
+.detail-stage:hover {
+  color: var(--color-text-muted);
+}
+
 .detail-stage.is-active {
+  color: var(--color-text);
+}
+
+.detail-stage.is-active:hover {
   color: var(--color-text);
 }
 

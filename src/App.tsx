@@ -66,7 +66,7 @@ export default function App() {
       <div id="smooth-wrapper">
         <div id="smooth-content">
           <a id="top" className="visually-hidden" href="#top" tabIndex={-1} aria-hidden="true" />
-          <ScrollExperience onBook={scrollToBooking} onViewServices={scrollToServices} />
+          <ScrollExperience onBook={scrollToBooking} onViewServices={scrollToServices} onNavigateStage={scrollToId} />
           <TrustBadges />
           <Pricing onBookPackage={bookPackage} />
           <Footer preselect={preselect} />

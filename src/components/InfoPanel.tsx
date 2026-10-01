@@ -15,6 +15,10 @@ interface InfoPanelProps {
   visible: boolean;
   /** Jumps to the Pricing section. */
   onViewPricing?: () => void;
+  /** Jumps the scroll position to a given stage's anchor id (the same
+   * mechanism the navbar links use — see App.tsx's scrollToId) when a
+   * stage in the rail below is clicked. */
+  onNavigateStage?: (id: string) => void;
 }
 
 export default function InfoPanel({
@@ -23,6 +27,7 @@ export default function InfoPanel({
   activeSubHighlight,
   visible,
   onViewPricing,
+  onNavigateStage,
 }: InfoPanelProps) {
   const activeSubLabel = stage.subHighlights?.[activeSubHighlight]?.label;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -94,6 +99,7 @@ export default function InfoPanel({
               stage={s}
               active={i === activeDetailIndex}
               complete={i < activeDetailIndex}
+              onSelect={onNavigateStage ? () => onNavigateStage(s.id) : undefined}
             />
           ))}
         </nav>
