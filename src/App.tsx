@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
@@ -72,6 +73,7 @@ export default function App() {
           <Footer preselect={preselect} />
         </div>
       </div>
+      <Analytics />
     </>
   );
 }
