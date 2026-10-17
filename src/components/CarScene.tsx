@@ -27,9 +27,12 @@ export interface CarSceneHandle {
    * frame. Fractions of canvas width/height; positive x = car slides LEFT,
    * positive y = car slides DOWN (see VIEW_SHIFT in carConfig.ts). */
   viewShift: { x: number; y: number };
-  /** True on phones/tablets (see useLightweightScene) — lets ScrollExperience
-   * pull every camera waypoint back by MOBILE_DISTANCE_SCALE (carConfig.ts). */
-  lightweight: boolean;
+  /** True when the viewport is phone/tablet-shaped (see useCompactLayout) —
+   * lets ScrollExperience pull every camera waypoint back by
+   * MOBILE_DISTANCE_SCALE (carConfig.ts). Deliberately about the viewport
+   * only, not the hardware tier: a wide Chromebook screen on the light render
+   * path still wants the desktop framing. */
+  compactLayout: boolean;
 }
 
 interface CarSceneProps {

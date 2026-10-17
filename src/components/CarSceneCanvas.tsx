@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useThree, useLoader, useFrame } from '@react-three/fiber';
-import { ContactShadows, useGLTF } from '@react-three/drei';
+import { ContactShadows, PerformanceMonitor, useGLTF } from '@react-three/drei';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import * as THREE from 'three';
@@ -8,7 +8,8 @@ import { MODEL_URL, MODEL_URL_MOBILE, MODEL_URL_INTERIOR, HDRI_URL, PAINT_COLOR,
 import { createVehicleMaterialResolver } from '../lib/vehicleMaterial';
 import { removeSmallIslandTrianglesInBox } from '../lib/geometry';
 import { addLogoDecal } from '../lib/vehicleAddons';
-import { useLightweightScene, LIGHTWEIGHT_SCENE_QUERY } from '../hooks/useLightweightScene';
+import { useLightweightScene, useCompactLayout, shouldUseLightweightScene, IS_WEAK_DEVICE } from '../hooks/useLightweightScene';
+import FxaaOutput from './FxaaOutput';
 import type { CarSceneHandle } from './CarScene';
 
 // Two spots turned out to have raised lettering molded into the geometry
@@ -82,7 +83,36 @@ const EMBOSSED_LETTERING_TARGETS: { meshName: string; box: THREE.Box3; maxIsland
   // at runtime against whichever glb loaded, not baked into either file, and
   // simplification doesn't fuse originally-disconnected islands together.
   { meshName: 'mesh_2', box: WHOLE_MESH_BOX, maxIslandTriangles: 300 },
+  // "TRD" stamped into the outer face of each red rear recovery hook
+  // ("grill013"), legible at the wheels stage. The letters stand ~2mm proud
+  // of the hook's side face (|x| = 0.6784), so each box starts just outside
+  // that face: the hook body never has a triangle centroid in it, which is
+  // what lets the island limit go as high as the desktop model's biggest
+  // letter island (426 triangles) safely. Simulated on both glbs before
+  // shipping — only letter islands are touched, no hook-body triangles.
+  {
+    meshName: 'grill013',
+    box: new THREE.Box3(new THREE.Vector3(0.6786, 0.535, -2.75), new THREE.Vector3(0.69, 0.578, -2.665)),
+    maxIslandTriangles: 500,
+  },
+  {
+    meshName: 'grill013',
+    box: new THREE.Box3(new THREE.Vector3(-0.69, 0.535, -2.75), new THREE.Vector3(-0.6786, 0.578, -2.665)),
+    maxIslandTriangles: 500,
+  },
 ];
+
+// A "TRD PRO" badge on each side of the hood scoop — light "TRD" letters
+// (bonnet006) and red "PRO" letters (bonnet) raised on a small black plate.
+// Unlike the embossed targets above, each of these two meshes is nothing BUT
+// the lettering for both badges (thin, badge-sized, sitting only at the two
+// scoop sides — confirmed by bounding box and a raycast grid over the
+// badge), so they're hidden whole. The black plate underneath belongs to the
+// larger scoop-trim mesh (bonnet003) and stays, reading as plain trim — same
+// trade as the caliper lettering. Found on the third "no emblems" sweep,
+// after the glass went see-through; present in both the desktop and mobile
+// glb under the same names.
+const LETTERING_ONLY_MESHES = new Set(['bonnet', 'bonnet006']);
 
 /**
  * The actual Three.js/R3F subtree — split into its own lazy-loaded chunk
@@ -96,10 +126,12 @@ function Model({
   onReady,
   viewShift,
   lightweight,
+  compactLayout,
 }: {
   onReady: (handle: CarSceneHandle) => void;
   viewShift: CarSceneHandle['viewShift'];
   lightweight: boolean;
+  compactLayout: boolean;
 }) {
   const { scene } = useGLTF(lightweight ? MODEL_URL_MOBILE : MODEL_URL);
   // Separate small glb (~16.8k triangles total) rather than folded into the
@@ -147,7 +179,6 @@ function Model({
       paintColor: PAINT_COLOR,
       texturesBaseUrl: TEXTURES_URL,
       supportsCompressedTextures: !lightweight && gl.extensions.has('WEBGL_compressed_texture_s3tc'),
-      cheapTransmission: lightweight,
     });
 
     // Shared between the body scene and the interior scene below — same
@@ -169,6 +200,7 @@ function Model({
       for (const target of EMBOSSED_LETTERING_TARGETS) {
         if (mesh.name === target.meshName) removeSmallIslandTrianglesInBox(mesh, target.box, target.maxIslandTriangles);
       }
+      if (LETTERING_ONLY_MESHES.has(mesh.name)) mesh.visible = false;
       mesh.material = Array.isArray(mesh.material)
         ? mesh.material.map((m) => resolveMaterial(m.name))
         : resolveMaterial(mesh.material.name);
@@ -186,6 +218,12 @@ function Model({
       interiorScene.traverse(processMesh);
       scene.add(interiorScene);
     }
+    // The shadow map is baked, not live (autoUpdate is off — see the Canvas's
+    // `shadows` prop): render it once now that every mesh has its final
+    // castShadow flag and geometry. A no-op on the lightweight path, where
+    // shadow maps are disabled outright.
+    // oxlint-disable-next-line react/immutability
+    gl.shadowMap.needsUpdate = true;
     // Loaded directly rather than via useLoader/Suspense — same reasoning as
     // vehicleMaterial.ts's DDS textures (direct `.load()` calls, not
     // useLoader): useLoader's suspend-react cache hung indefinitely for this
@@ -195,8 +233,8 @@ function Model({
     // after the truck itself rather than blocking the whole scene on it.
     new THREE.TextureLoader().load(BRAND_LOGO_URL, (texture) => addLogoDecal(scene, texture, gl));
 
-    onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift, lightweight });
-  }, [scene, interiorScene, camera, gl, onReady, viewShift, lightweight]);
+    onReady({ camera: camera as THREE.PerspectiveCamera, model: scene, box, viewShift, compactLayout });
+  }, [scene, interiorScene, camera, gl, onReady, viewShift, lightweight, compactLayout]);
 
   return <primitive object={scene} />;
 }
@@ -319,6 +357,28 @@ function CameraRig({ viewShift }: { viewShift: CarSceneHandle['viewShift'] }) {
   return null;
 }
 
+/**
+ * Render resolution (device pixel ratio) for the canvas.
+ *
+ * Upper cap by path: 1.75 on the full desktop path; 1.5 on phones/tablets — a
+ * flat `1` there (a real iPhone's devicePixelRatio is 2-3x) read as
+ * soft/pixelated on an actual Retina screen, and 1.5 is the documented sweet
+ * spot for mobile three.js scenes; 1.25 on weak laptop-class hardware like a
+ * school Chromebook (see IS_WEAK_DEVICE — usually a ~1x screen anyway, and
+ * the weakest GPU this site is likely to meet). Never above the screen's own
+ * ratio — rendering pixels the display can't show is pure waste.
+ *
+ * `perfFactor` (1 = full quality) slides that down toward MIN_DPR when
+ * PerformanceMonitor sees the frame rate sag: a slightly softer image is a far
+ * better trade than a stuttering scroll.
+ */
+const MIN_DPR = 0.75;
+function adaptiveDpr(compactLayout: boolean, perfFactor: number): number {
+  const cap = compactLayout ? 1.5 : IS_WEAK_DEVICE ? 1.25 : 1.75;
+  const max = Math.max(MIN_DPR, Math.min(window.devicePixelRatio || 1, cap));
+  return Math.round((MIN_DPR + (max - MIN_DPR) * perfFactor) * 20) / 20;
+}
+
 export default function CarSceneCanvas({
   onReady,
   active = true,
@@ -331,6 +391,14 @@ export default function CarSceneCanvas({
   // rig reads it; deliberately not React state (it changes every scrub tick).
   const [viewShift] = useState(() => ({ x: 0, y: 0 }));
   const lightweight = useLightweightScene();
+  const compactLayout = useCompactLayout();
+  // 0..1, driven down by PerformanceMonitor below when the GPU can't hold a
+  // smooth frame rate — see adaptiveDpr.
+  const [perfFactor, setPerfFactor] = useState(1);
+  // Decided once: hardware antialiasing is a context-creation setting, so it
+  // can't follow a later resize across the layout breakpoint anyway. Phones
+  // and tablets keep MSAA — their tile-based GPUs resolve it nearly for free.
+  const [fxaa] = useState(() => IS_WEAK_DEVICE && !shouldUseLightweightScene());
 
   return (
     <Canvas
@@ -345,26 +413,25 @@ export default function CarSceneCanvas({
       // using PCFShadowMap instead" warning on every single frame it
       // renders. Asking for PCFShadowMap directly gets the same result
       // (three.js was silently substituting it anyway) with no warning.
-      // `lightweight`: a real-time shadow map is one of the more expensive
-      // things a mobile GPU can be asked to do every frame — off entirely
-      // there (ContactShadows below gives up a soft blob under the car
-      // regardless, which reads as "grounded" well enough without it).
-      shadows={lightweight ? false : { type: THREE.PCFShadowMap }}
+      // `autoUpdate: false`: the truck never moves relative to the key light
+      // (only the camera does), so the shadow map never changes — but by
+      // default three re-renders the whole ~300k-triangle truck into it every
+      // single frame anyway. Model re-renders it exactly once, after the
+      // truck's meshes are set up (see the needsUpdate there). R3F copies
+      // this object's fields straight onto renderer.shadowMap.
+      // `lightweight`: off entirely there (ContactShadows below gives a soft
+      // blob under the car regardless, which reads as "grounded" well
+      // enough without it).
+      shadows={lightweight ? false : { type: THREE.PCFShadowMap, autoUpdate: false }}
       camera={{ fov: 32, near: 0.1, far: 100 }}
-      // A flat `1` here (a real iPhone's devicePixelRatio is 2-3x) read as
-      // soft/pixelated on an actual Retina screen — the canvas was rendering
-      // at a third of the display's native pixel grid and stretching to
-      // fill it. 1.5 is the documented sweet spot for mobile three.js scenes
-      // (enough sharpness to not look upscaled, well short of the 2-3x that
-      // would burn real GPU time supersampling every fragment shader on the
-      // weakest GPU in the room). The desktop cap (1.75) is untouched.
-      dpr={lightweight ? [1, 1.5] : [1, 1.75]}
+      dpr={adaptiveDpr(compactLayout, perfFactor)}
       // Was off on mobile entirely — between that and the dpr cap above, model
       // edges (the truck's silhouette, panel lines, wheel rims) read as
       // jagged/"pixelated" on a real phone screen. Modern phone GPUs handle
-      // MSAA cheaply; the removed HDRI/shadows/transmission cost elsewhere
-      // in this render path leaves room for it.
-      gl={{ antialias: true }}
+      // MSAA cheaply. Weak laptop-class GPUs don't: 4x MSAA measured at about
+      // half of the whole frame's GPU time there, so they get FxaaOutput
+      // below instead.
+      gl={{ antialias: !fxaa }}
       onCreated={({ gl }) => {
         // Filmic tone mapping — the same curve real product-photography
         // renderers use — so the HDRI's highlights roll off naturally
@@ -373,9 +440,35 @@ export default function CarSceneCanvas({
         gl.toneMappingExposure = 1.1;
       }}
     >
+      {fxaa && <FxaaOutput />}
       <Suspense fallback={null}>
-        <Model onReady={onReady} viewShift={viewShift} lightweight={lightweight} />
+        <Model onReady={onReady} viewShift={viewShift} lightweight={lightweight} compactLayout={compactLayout} />
         <CameraRig viewShift={viewShift} />
+        {/* Dynamic resolution: if the frame rate sags (a school Chromebook, a
+            laptop on battery, a busy integrated GPU), step the render
+            resolution down until it recovers — and back up once there's
+            headroom again. Resolution is the one quality lever that can move
+            at runtime without recompiling shaders or reloading the model, and
+            fill rate is what a weak GPU runs out of first. Inside the
+            Suspense boundary on purpose: it only starts measuring once the
+            truck has loaded, so the parse/decode stalls of loading don't read
+            as a slow GPU. `flipflops` (drei counts every step, up or down)
+            leaves room for a full descent plus some recovery, but stops it
+            oscillating forever on a machine that sits right at a boundary.
+            `bounds` are fixed rather than relative to the fastest rate seen:
+            a GPU that can only ever manage 26fps would otherwise set its own
+            bar at 26fps and never step down (tried and measured). Known
+            trade-off: a browser that deliberately caps itself at 30fps
+            (Chrome's Energy Saver, by default only at 20% battery or less)
+            gets the softer resolution too. */}
+        <PerformanceMonitor
+          factor={1}
+          step={0.25}
+          ms={200}
+          flipflops={8}
+          bounds={(refreshrate) => (refreshrate > 100 ? [60, 100] : [45, 58])}
+          onChange={({ factor }) => setPerfFactor(factor)}
+        />
         {/* The real photographic HDRI is the biggest single line item here
             (5.6MB, plus the CPU cost of decoding + convolving it into a
             reflection map) — skipped on phones, where that download costs
@@ -406,29 +499,21 @@ export default function CarSceneCanvas({
         <ambientLight intensity={lightweight ? 0.45 : 0.3} />
         {/* The car's geometry never moves relative to the ground (only the
             camera does), so the shadow itself never changes — `frames={1}`
-            on mobile bakes it exactly once at mount instead of every frame,
-            same visual result as desktop's continuously-updating version at
-            a small fraction of the cost. */}
-        <ContactShadows
-          position={[0, 0, 0]}
-          opacity={0.65}
-          scale={12}
-          blur={2}
-          far={3}
-          frames={lightweight ? 1 : Infinity}
-        />
+            bakes it exactly once at mount instead of re-rendering the whole
+            truck into it every frame. Same visual result at a small fraction
+            of the cost, on every device. */}
+        <ContactShadows position={[0, 0, 0]} opacity={0.65} scale={12} blur={2} far={3} frames={1} />
       </Suspense>
     </Canvas>
   );
 }
 
 // Preload only the model this device will actually use — preloading both
-// would download both. Same matchMedia query as useLightweightScene, just
-// read once here since preload runs at module init, outside React (a resize
-// across the breakpoint after this doesn't need a second preload — Model's
-// own useGLTF call below still fetches the other one, just without the
-// head start).
-if (typeof window !== 'undefined' && window.matchMedia(LIGHTWEIGHT_SCENE_QUERY).matches) {
+// would download both. Same decision as useLightweightScene, just read once
+// here since preload runs at module init, outside React (a resize across the
+// breakpoint after this doesn't need a second preload — Model's own useGLTF
+// call below still fetches the other one, just without the head start).
+if (shouldUseLightweightScene()) {
   useGLTF.preload(MODEL_URL_MOBILE);
 } else {
   useGLTF.preload(MODEL_URL);

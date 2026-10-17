@@ -81,7 +81,7 @@ export default function ScrollExperience({ onBook, onViewServices, onNavigateSta
   }, []);
 
   // ---- Wire the real Three.js camera into the master scroll timeline ----
-  const handleSceneReady = useCallback(({ camera, box, viewShift, lightweight }: CarSceneHandle) => {
+  const handleSceneReady = useCallback(({ camera, box, viewShift, compactLayout }: CarSceneHandle) => {
     // ---- Facts about the car, measured from its real bounding box — the
     // same "compute from geometry, never guess/trust an opaque source"
     // discipline that fixed every camera bug in the old Spline version of
@@ -94,7 +94,7 @@ export default function ScrollExperience({ onBook, onViewServices, onNavigateSta
 
     const buildPose = (params: OrbitPoseParams): Pose => {
       const azimuthRad = degToRad(params.azimuthDeg);
-      const distance = params.distanceFrac * maxHorizontal * (lightweight ? MOBILE_DISTANCE_SCALE : 1);
+      const distance = params.distanceFrac * maxHorizontal * (compactLayout ? MOBILE_DISTANCE_SCALE : 1);
       const position: Vec3 = {
         x: boxCenter.x + Math.sin(azimuthRad) * distance,
         y: groundY + params.elevationFrac * boxSize.y,
